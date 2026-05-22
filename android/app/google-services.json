@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "872966184512",
+    "project_id": "pingpi",
+    "storage_bucket": "pingpi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:872966184512:android:1ece45ee6b8e4a0ec889a5",
+        "android_client_info": {
+          "package_name": "com.example.pingpic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdUZqEo49ZNglCuzChcg1jaMopBPXFkdQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

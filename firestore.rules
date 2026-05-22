@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if the user is accessing their own document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper: Check if two users are accepted friends
+    // Note: Assumes deterministic friendship document IDs: "user1Id_user2Id"
+    function isFriend(user1, user2) {
+      let path1 = /databases/$(database)/documents/friendships/$(user1 + '_' + user2);
+      let path2 = /databases/$(database)/documents/friendships/$(user2 + '_' + user1);
+      return (exists(path1) && get(path1).data.status == 'accepted') || 
+             (exists(path2) && get(path2).data.status == 'accepted');
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      // Anyone logged in can view profiles (to search or display friend list)
+      allow read: if isAuthenticated();
+      // Only the user themselves can create or update their own profile
+      allow create, update: if isOwner(userId);
+      // No one can delete user profiles from client
+      allow delete: if false;
+    }
+
+    // --- FRIENDSHIPS COLLECTION ---
+    match /friendships/{friendshipId} {
+      // Users can only view friendships they are a part of
+      allow read: if isAuthenticated() && (
+        resource.data.requesterId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid
+      );
+      // Anyone logged in can send a friend request, but sender must be themselves
+      allow create: if isAuthenticated() && 
+        request.resource.data.requesterId == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      // Only participants can update (accept request) or delete (unfriend/reject request)
+      allow update, delete: if isAuthenticated() && (
+        resource.data.requesterId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid
+      );
+    }
+
+    // --- MOMENTS (PHOTOS) COLLECTION ---
+    match /moments/{momentId} {
+      // A moment can only be viewed by its owner OR an accepted friend of the owner
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        isFriend(resource.data.userId, request.auth.uid)
+      );
+      // Owner can upload moments, but must set userId to their own UID
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      // Only the owner can delete their moments
+      allow delete: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      // Moments are static and cannot be updated from client
+      allow update: if false;
+    }
+
+    // --- NOTIFICATIONS QUEUE COLLECTION ---
+    match /notifications_queue/{queueId} {
+      // Users can queue a notification, but must set senderId to their own UID
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.status == 'pending';
+      // Read/Write access is denied to clients. Only Cloud Functions can process.
+      allow read, update, delete: if false;
+    }
+
+    // --- NOTIFICATIONS COLLECTION ---
+    match /notifications/{notificationId} {
+      // Users can only view, update (isRead), or delete their own notifications
+      allow read, update, delete: if isAuthenticated() && 
+        resource.data.receiverId == request.auth.uid;
+      // Any authenticated user can create a notification (e.g. sending a friend request)
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid;
+    }
+  }
+}

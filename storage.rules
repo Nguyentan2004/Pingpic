@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if the user is accessing their own storage folder
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper: Check if the user is a friend of the folder owner in Firestore
+    // Note: Cross-service query to Firestore using deterministic friendship IDs
+    function isFriend(ownerId, viewerId) {
+      let path1 = /databases/(default)/documents/friendships/$(ownerId + '_' + viewerId);
+      let path2 = /databases/(default)/documents/friendships/$(viewerId + '_' + ownerId);
+      return (firestore.exists(path1) && firestore.get(path1).data.status == 'accepted') ||
+             (firestore.exists(path2) && firestore.get(path2).data.status == 'accepted');
+    }
+
+    // Matches moments folders: moments/{userId}/{fileName}
+    match /moments/{userId}/{fileName} {
+      // Allow reading only if the user is the owner OR a friend of the owner
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        isFriend(userId, request.auth.uid)
+      );
+
+      // Allow writing (uploading/deleting) only if the user is the owner of the folder
+      allow write: if isOwner(userId) && (
+        // Allow deletion (when request.resource is null)
+        request.resource == null || 
+        // Validate uploads (create/update)
+        (
+          request.resource.size < 5 * 1024 * 1024 && // Max 5MB file size
+          request.resource.contentType.matches('image/jpeg') // Only JPEG allowed (photos)
+        )
+      );
+    }
+  }
+}
