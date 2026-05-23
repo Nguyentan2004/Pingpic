@@ -112,20 +112,45 @@ class _PhotoCardState extends State<PhotoCard>
                   Expanded(
                     child: Stack(
                       children: [
-                        // ── Ảnh nền ──────────────────────────────────
+                        // ── Blurred Background Image ──────────────────
                         Positioned.fill(
-                          child: widget.photo.imageBytes != null 
-                            ? Image.memory(
-                                widget.photo.imageBytes!,
-                                fit: BoxFit.cover,
-                              )
-                            : WebSafeImage(
-                                imageUrl: widget.photo.imageUrl,
-                                fit: BoxFit.cover,
-                                memCacheWidth: 600,
-                                placeholder: (context, url) => _buildImageSkeleton(),
-                                errorWidget: (context, url, error) => _buildImageError(),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: ImageFiltered(
+                              imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                              child: Opacity(
+                                opacity: 0.35,
+                                child: widget.photo.imageBytes != null
+                                    ? Image.memory(
+                                        widget.photo.imageBytes!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : WebSafeImage(
+                                        imageUrl: widget.photo.imageUrl,
+                                        fit: BoxFit.cover,
+                                        memCacheWidth: 150,
+                                      ),
                               ),
+                            ),
+                          ),
+                        ),
+
+                        // ── Foreground Image (Entire content, fit within limits) ──
+                        Positioned.fill(
+                          child: Center(
+                            child: widget.photo.imageBytes != null
+                                ? Image.memory(
+                                    widget.photo.imageBytes!,
+                                    fit: BoxFit.contain,
+                                  )
+                                : WebSafeImage(
+                                    imageUrl: widget.photo.imageUrl,
+                                    fit: BoxFit.contain,
+                                    memCacheWidth: 600,
+                                    placeholder: (context, url) => _buildImageSkeleton(),
+                                    errorWidget: (context, url, error) => _buildImageError(),
+                                  ),
+                          ),
                         ),
 
                         // ── Gradient overlay ──────────────────────────

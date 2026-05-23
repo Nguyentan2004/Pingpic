@@ -5,6 +5,7 @@ import 'package:pingpic/l10n/app_localizations.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../providers/notification_provider.dart';
+import '../providers/auth_provider.dart';
 import 'friend_avatar.dart'; // For AppSidebar
 import 'camera_panel.dart'; // For CameraPanel
 
@@ -235,7 +236,14 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
 
   Widget _buildBottomNavButton(_BottomNavItem item, bool isSelected, {int badgeCount = 0}) {
     return GestureDetector(
-      onTap: () => context.go(item.path),
+      onTap: () {
+        if (item.path == '/profile') {
+          final auth = context.read<AuthProvider>();
+          context.go('/profile?userId=${auth.userId}');
+        } else {
+          context.go(item.path);
+        }
+      },
       child: Container(
         color: Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

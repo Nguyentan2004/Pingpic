@@ -47,6 +47,32 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  @override
+  void didUpdateWidget(ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userId != oldWidget.userId) {
+      final currentUserId = context.read<AuthProvider>().userId;
+      if (widget.userId != null && widget.userId != currentUserId) {
+        _loadOtherUserData();
+      } else {
+        // Reset other user details to display own profile
+        setState(() {
+          _otherFullName = null;
+          _otherUsername = null;
+          _otherAvatarUrl = null;
+          _otherBio = null;
+          _otherFriendsCount = 0;
+          _otherMoments = [];
+          _relationshipId = null;
+          _relationshipStatus = null;
+          _relationshipRequesterId = null;
+        });
+        context.read<HistoryProvider>().fetchHistoryPhotos();
+        context.read<FriendProvider>().fetchFriendsData();
+      }
+    }
+  }
+
   Future<void> _loadOtherUserData() async {
     setState(() {
       _loadingOtherUser = true;

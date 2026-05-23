@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/constants/dummy_data.dart';
 import '../../core/services/image_service.dart';
 import '../../core/services/webcam_helper.dart';
 import 'package:provider/provider.dart';
+import '../pages/editor/moment_editor_page.dart';
 import '../providers/feed_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/friend_provider.dart';
@@ -136,6 +136,24 @@ class _CameraPanelState extends State<CameraPanel>
       _errorMessage = null;
       _captionController.clear();
     });
+  }
+
+  /// Open the full-screen overlay editor. On return, update _imageBytes
+  /// with the composited (edited) image.
+  Future<void> _openEditor() async {
+    if (_imageBytes == null) return;
+    final edited = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => MomentEditorPage(imageBytes: _imageBytes!),
+      ),
+    );
+    if (edited != null && mounted) {
+      setState(() {
+        _imageBytes = edited;
+        _fileName = 'edited_moment.png';
+      });
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -463,7 +481,7 @@ class _CameraPanelState extends State<CameraPanel>
             child: Image.memory(
               _imageBytes!,
               fit: BoxFit.cover,
-              // Fallback nếu bytes corrupt
+              gaplessPlayback: true,
               errorBuilder: (_, __, ___) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -471,9 +489,13 @@ class _CameraPanelState extends State<CameraPanel>
                     Icon(Icons.broken_image_rounded,
                         color: isDark ? AppColors.textMuted : AppColors.textLight, size: 48),
                     const SizedBox(height: 8),
-                    Text(l10n.localeName == 'vi' ? 'Không thể hiển thị ảnh' : 'Could not display image',
-                        style: TextStyle(
-                            color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 12)),
+                    Text(
+                      l10n.localeName == 'vi' ? 'Không thể hiển thị ảnh' : 'Could not display image',
+                      style: TextStyle(
+                        color: isDark ? AppColors.textMuted : AppColors.textLight,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -481,7 +503,7 @@ class _CameraPanelState extends State<CameraPanel>
           ),
         ),
 
-        // Overlay top: file info
+        // Overlay top: file info + close button
         Positioned(
           top: 0,
           left: 0,
@@ -497,13 +519,11 @@ class _CameraPanelState extends State<CameraPanel>
                   Colors.transparent,
                 ],
               ),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_rounded,
-                    color: AppColors.success, size: 14),
+                const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -518,8 +538,7 @@ class _CameraPanelState extends State<CameraPanel>
                 ),
                 if (_fileSize != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.45),
                       borderRadius: BorderRadius.circular(10),
@@ -533,41 +552,32 @@ class _CameraPanelState extends State<CameraPanel>
                       ),
                     ),
                   ),
+                const SizedBox(width: 6),
+                // Close button
+                GestureDetector(
+                  onTap: _clearImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                  ),
+                ),
               ],
             ),
           ),
         ),
 
-        // Close button (xoá ảnh)
-        Positioned(
-          top: 8,
-          right: 8,
-          child: GestureDetector(
-            onTap: _clearImage,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.65),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.close_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-          ),
-        ),
-
-        // Replace button
+        // Replace button (bottom-left)
         Positioned(
           bottom: 10,
           left: 10,
           child: GestureDetector(
             onTap: _handlePickFromGallery,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(20),
@@ -575,8 +585,7 @@ class _CameraPanelState extends State<CameraPanel>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.swap_horiz_rounded,
-                      color: Colors.white.withOpacity(0.9), size: 14),
+                  Icon(Icons.swap_horiz_rounded, color: Colors.white.withOpacity(0.9), size: 14),
                   const SizedBox(width: 5),
                   Text(
                     l10n.localeName == 'vi' ? 'Thay thế' : 'Replace',
@@ -584,6 +593,46 @@ class _CameraPanelState extends State<CameraPanel>
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // ✨ Edit button (bottom-right) — opens MomentEditorPage
+        Positioned(
+          bottom: 10,
+          right: 10,
+          child: GestureDetector(
+            onTap: _openEditor,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B35), Color(0xFFFF4B1F)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6B35).withOpacity(0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('✨', style: TextStyle(fontSize: 13)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Edit',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

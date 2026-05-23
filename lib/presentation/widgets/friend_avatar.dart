@@ -108,7 +108,7 @@ class AppSidebar extends StatelessWidget {
                 final avatar = auth.avatarUrl;
                 final isProfileSelected = currentPath == '/profile';
                 return GestureDetector(
-                  onTap: () => context.go('/profile'),
+                  onTap: () => context.go('/profile?userId=${auth.userId}'),
                   child: MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: Container(

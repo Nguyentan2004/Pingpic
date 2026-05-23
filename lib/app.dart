@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pingpic/l10n/app_localizations.dart';
+import 'package:giphy_get/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
@@ -40,7 +41,10 @@ class App extends StatelessWidget {
             darkTheme: AppTheme.dark,
             themeMode: themeProvider.themeMode,
             locale: themeProvider.locale,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: [
+              ...AppLocalizations.localizationsDelegates,
+              GiphyGetUILocalizations.delegate,
+            ],
             supportedLocales: AppLocalizations.supportedLocales,
             routerConfig: AppRouter.getRouter(authProvider),
           );
