@@ -41,6 +41,25 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    androidComponents {
+        onVariants { variant ->
+            variant.outputs.forEach { output ->
+                try {
+                    val propMethod = output::class.java.getMethod("getOutputFileName")
+                    val prop = propMethod.invoke(output) as? org.gradle.api.provider.Property<String>
+                    prop?.set("PingPic-v${defaultConfig.versionName}.apk")
+                } catch (e: Exception) {
+                    try {
+                        val setMethod = output::class.java.getMethod("setOutputFileName", String::class.java)
+                        setMethod.invoke(output, "PingPic-v${defaultConfig.versionName}.apk")
+                    } catch (ex: Exception) {
+                        // Safe ignore if method is missing
+                    }
+                }
+            }
+        }
+    }
 }
 
 flutter {

@@ -21,6 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _pwdCtrl = TextEditingController();
   bool _isLoading = false;
   String? _error;
+  bool _rememberMe = true;
 
   Future<void> _doLogin() async {
     final l10n = AppLocalizations.of(context)!;
@@ -40,7 +41,11 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     final authProvider = context.read<AuthProvider>();
-    final errorMsg = await authProvider.login(usernameOrEmail, password);
+    final errorMsg = await authProvider.login(
+      usernameOrEmail,
+      password,
+      rememberMe: _rememberMe,
+    );
 
     if (errorMsg == null) {
       if (!mounted) return;
@@ -309,24 +314,75 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _showForgotPasswordDialog,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(50, 30),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Remember Me checkbox
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Theme(
+                            data: Theme.of(context).copyWith(
+                              unselectedWidgetColor: subtextColor.withOpacity(0.6),
+                            ),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _rememberMe,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _rememberMe = value ?? true;
+                                  });
+                                },
+                                activeColor: AppColors.primary,
+                                checkColor: Colors.white,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _rememberMe = !_rememberMe;
+                              });
+                            },
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: Text(
+                                l10n.loginRememberMe,
+                                style: TextStyle(
+                                  color: subtextColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        l10n.loginForgotPasswordQ,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      TextButton(
+                        onPressed: _showForgotPasswordDialog,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(50, 30),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          l10n.loginForgotPasswordQ,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
 
                   if (_error != null) ...[

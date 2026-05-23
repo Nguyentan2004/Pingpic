@@ -61,38 +61,19 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
         Expanded(
           child: widget.child,
         ),
-        if (isHome)
-          Container(
-            width: 340,
-            padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
-            child: const CameraPanel(),
-          ),
       ],
     );
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // TABLET LAYOUT: Top bar | Center dynamic Row (child + CameraPanel) | Bottom Nav
+  // TABLET LAYOUT: Top bar | Center dynamic child | Bottom Nav
   // ─────────────────────────────────────────────────────────────────────
   Widget _buildTabletLayout(String currentPath, bool isHome) {
     return Column(
       children: [
         if (isHome) _buildTopBar(),
         Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: widget.child,
-              ),
-              if (isHome)
-                Container(
-                  width: 300,
-                  padding: const EdgeInsets.fromLTRB(0, 12, 16, 16),
-                  child: const CameraPanel(),
-                ),
-            ],
-          ),
+          child: widget.child,
         ),
         _buildBottomNavBar(currentPath),
       ],

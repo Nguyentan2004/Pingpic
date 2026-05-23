@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'web_drag_drop_zone/drag_drop_zone.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/dummy_data.dart';
 import '../../core/services/image_service.dart';
@@ -138,6 +139,33 @@ class _CameraPanelState extends State<CameraPanel>
     });
   }
 
+  void _handleDroppedFile(Uint8List bytes, String name, String type, int size) {
+    if (size > 10 * 1024 * 1024) {
+      _showError('⚠️ File too large', 'File is too large. Maximum allowed size is 10MB.');
+      return;
+    }
+    
+    final normalizedMime = type.toLowerCase();
+    final supported = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'};
+    if (!supported.any((m) => normalizedMime.contains(m.split('/').last))) {
+      _showError('❌ Unsupported format', 'Unsupported file format: $type. Please use JPG, PNG, or WEBP.');
+      return;
+    }
+
+    setState(() {
+      _imageBytes = bytes;
+      _fileName = name;
+      if (size < 1024) {
+        _fileSize = '${size}B';
+      } else if (size < 1024 * 1024) {
+        _fileSize = '${(size / 1024).toStringAsFixed(1)}KB';
+      } else {
+        _fileSize = '${(size / (1024 * 1024)).toStringAsFixed(1)}MB';
+      }
+      _errorMessage = null;
+    });
+  }
+
   /// Open the full-screen overlay editor. On return, update _imageBytes
   /// with the composited (edited) image.
   Future<void> _openEditor() async {
@@ -164,13 +192,22 @@ class _CameraPanelState extends State<CameraPanel>
     final isDark = themeProvider.isDarkMode;
     final l10n = AppLocalizations.of(context)!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.07),
-        ),
+    return WebDragDropZone(
+      onDragStateChanged: (isDragOver) {
+        setState(() {
+          _isDragOver = isDragOver;
+        });
+      },
+      onFileDropped: (bytes, name, mimeType, size) {
+        _handleDroppedFile(bytes, name, mimeType, size);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.07),
+          ),
         boxShadow: isDark
             ? [
                 BoxShadow(
@@ -243,8 +280,9 @@ class _CameraPanelState extends State<CameraPanel>
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPanelHeader(bool isDark, AppLocalizations l10n) {
     return Container(
@@ -412,7 +450,7 @@ class _CameraPanelState extends State<CameraPanel>
         const SizedBox(height: 20),
         Text(
           _isDragOver 
-              ? (l10n.localeName == 'vi' ? 'Buông ra để tải lên!' : 'Release to upload!') 
+              ? (l10n.localeName == 'vi' ? 'Buông ra để tải lên!' : 'Drop image here') 
               : l10n.cameraUploadPhoto,
           style: TextStyle(
             color: _isDragOver ? AppColors.primary : (isDark ? Colors.white : AppColors.textDark),

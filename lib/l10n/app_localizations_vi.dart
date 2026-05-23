@@ -513,6 +513,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get loginForgotPasswordQ => 'Quên mật khẩu?';
 
   @override
+  String get loginRememberMe => 'Ghi nhớ đăng nhập';
+
+  @override
   String get loginFillAllFields => 'Vui lòng điền đầy đủ thông tin!';
 
   @override

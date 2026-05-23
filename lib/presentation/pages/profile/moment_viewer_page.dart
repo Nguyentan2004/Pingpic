@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/dummy_data.dart';
@@ -28,6 +30,7 @@ class MomentViewerPage extends StatefulWidget {
 
 class _MomentViewerPageState extends State<MomentViewerPage> {
   PageController? _pageController;
+  bool _isPageAnimating = false;
 
   @override
   void dispose() {
@@ -125,30 +128,55 @@ class _MomentViewerPageState extends State<MomentViewerPage> {
             _pageController = PageController(initialPage: targetPage);
           }
 
-          return PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final photo = list[index].photo;
-              final card = PhotoCard(
-                photo: photo,
-                index: index,
-              );
-
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: isResponsive
-                    ? Center(
-                        child: AspectRatio(
-                          aspectRatio: 3 / 4,
-                          child: card,
-                        ),
-                      )
-                    : card,
-              );
+          return Listener(
+            onPointerSignal: (pointerSignal) {
+              if (pointerSignal is PointerScrollEvent) {
+                final dy = pointerSignal.scrollDelta.dy;
+                if (dy != 0 && !_isPageAnimating) {
+                  final targetPage = dy > 0 
+                      ? ((_pageController?.page ?? 0).round() + 1) 
+                      : ((_pageController?.page ?? 0).round() - 1);
+                  
+                  if (targetPage >= 0 && targetPage < list.length) {
+                    _isPageAnimating = true;
+                    _pageController?.animateToPage(
+                      targetPage,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                    ).then((_) {
+                      _isPageAnimating = false;
+                    });
+                  }
+                }
+              }
             },
+            child: PageView.builder(
+              controller: _pageController,
+              scrollDirection: Axis.vertical,
+              physics: kIsWeb 
+                  ? const NeverScrollableScrollPhysics() 
+                  : const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              itemCount: list.length,
+              itemBuilder: (context, index) {
+                final photo = list[index].photo;
+                final card = PhotoCard(
+                  photo: photo,
+                  index: index,
+                );
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: isResponsive
+                      ? Center(
+                          child: AspectRatio(
+                            aspectRatio: 3 / 4,
+                            child: card,
+                          ),
+                        )
+                      : card,
+                );
+              },
+            ),
           );
         },
       ),

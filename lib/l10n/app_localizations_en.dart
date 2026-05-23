@@ -510,6 +510,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginForgotPasswordQ => 'Forgot Password?';
 
   @override
+  String get loginRememberMe => 'Remember Me';
+
+  @override
   String get loginFillAllFields => 'Please fill in all fields!';
 
   @override

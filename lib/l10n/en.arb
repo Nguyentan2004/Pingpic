@@ -181,6 +181,7 @@
   "loginInvalidEmail": "Invalid email address!",
   "loginSend": "Send",
   "loginForgotPasswordQ": "Forgot Password?",
+  "loginRememberMe": "Remember Me",
   "loginFillAllFields": "Please fill in all fields!",
 
   "registerFillAllFields": "Please fill in all fields!",

@@ -180,6 +180,7 @@
   "loginInvalidEmail": "Địa chỉ email không hợp lệ!",
   "loginSend": "Gửi",
   "loginForgotPasswordQ": "Quên mật khẩu?",
+  "loginRememberMe": "Ghi nhớ đăng nhập",
   "loginFillAllFields": "Vui lòng điền đầy đủ thông tin!",
 
   "registerFillAllFields": "Vui lòng điền đầy đủ thông tin!",

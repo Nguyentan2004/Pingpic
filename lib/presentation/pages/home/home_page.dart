@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final PageController _pageController = PageController();
   final FocusNode _feedFocusNode = FocusNode();
+  bool _isPageAnimating = false;
 
   @override
   void initState() {
@@ -157,46 +159,73 @@ class _HomePageState extends State<HomePage> {
             }
             return KeyEventResult.ignored;
           },
-          child: RefreshIndicator(
-            color: AppColors.primary,
-            backgroundColor: cardBg,
-            onRefresh: feedProvider.fetchNewPhotos,
-            child: feedProvider.isLoading
-                ? PageView.builder(
-                    controller: PageController(),
-                    scrollDirection: Axis.vertical,
-                    itemCount: 3,
-                    itemBuilder: (context, index) {
-                      final card = const PhotoSkeletonCard();
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: isResponsive
-                            ? Center(child: AspectRatio(aspectRatio: 3 / 4, child: card))
-                            : card,
-                      );
-                    },
-                  )
-                : photos.isEmpty
-                    ? _buildEmptyState(isDark, l10n)
-                    : PageView.builder(
-                        controller: _pageController,
-                        scrollDirection: Axis.vertical,
-                        physics: const AlwaysScrollableScrollPhysics(
-                            parent: BouncingScrollPhysics()),
-                        itemCount: photos.length,
-                        itemBuilder: (context, index) {
-                          final card = PhotoCard(
-                            photo: photos[index],
-                            index: index,
-                          );
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: isResponsive
-                                ? Center(child: AspectRatio(aspectRatio: 3 / 4, child: card))
-                                : card,
-                          );
-                        },
-                      ),
+          child: Listener(
+            onPointerSignal: (pointerSignal) {
+              if (pointerSignal is PointerScrollEvent) {
+                final dy = pointerSignal.scrollDelta.dy;
+                if (dy != 0 && !_isPageAnimating) {
+                  final targetPage = dy > 0 
+                      ? (_pageController.page ?? 0).round() + 1 
+                      : (_pageController.page ?? 0).round() - 1;
+                  
+                  if (targetPage >= 0 && targetPage < photos.length) {
+                    _isPageAnimating = true;
+                    _pageController.animateToPage(
+                      targetPage,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                    ).then((_) {
+                      _isPageAnimating = false;
+                    });
+                  }
+                }
+              }
+            },
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              backgroundColor: cardBg,
+              onRefresh: feedProvider.fetchNewPhotos,
+              child: feedProvider.isLoading
+                  ? PageView.builder(
+                      controller: PageController(),
+                      scrollDirection: Axis.vertical,
+                      physics: kIsWeb 
+                          ? const NeverScrollableScrollPhysics() 
+                          : const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      itemCount: 3,
+                      itemBuilder: (context, index) {
+                        final card = const PhotoSkeletonCard();
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: isResponsive
+                              ? Center(child: AspectRatio(aspectRatio: 3 / 4, child: card))
+                              : card,
+                        );
+                      },
+                    )
+                  : photos.isEmpty
+                      ? _buildEmptyState(isDark, l10n)
+                      : PageView.builder(
+                          controller: _pageController,
+                          scrollDirection: Axis.vertical,
+                          physics: kIsWeb 
+                              ? const NeverScrollableScrollPhysics() 
+                              : const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          itemCount: photos.length,
+                          itemBuilder: (context, index) {
+                            final card = PhotoCard(
+                              photo: photos[index],
+                              index: index,
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: isResponsive
+                                  ? Center(child: AspectRatio(aspectRatio: 3 / 4, child: card))
+                                  : card,
+                            );
+                          },
+                        ),
+            ),
           ),
         );
       },
@@ -309,6 +338,7 @@ class _HomePageState extends State<HomePage> {
     return PageView.builder(
       controller: PageController(),
       scrollDirection: Axis.vertical,
+      physics: kIsWeb ? const NeverScrollableScrollPhysics() : null,
       itemCount: 3,
       itemBuilder: (context, index) {
         final card = const PhotoSkeletonCard();

@@ -41,8 +41,36 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> checkAuthStatus() async {
+    if (kIsWeb) {
+      try {
+        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      } catch (e) {
+        debugPrint('Error setting FirebaseAuth persistence on web: $e');
+      }
+    }
+
     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
       if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final rememberMe = prefs.getBool('remember_me') ?? true;
+
+        if (!rememberMe) {
+          _presenceService?.dispose();
+          _presenceService = null;
+          _userId = null;
+          _username = null;
+          _email = null;
+          _fullName = null;
+          _avatarUrl = null;
+          _bio = null;
+          _shareCode = null;
+          _status = AuthStatus.unauthenticated;
+          notifyListeners();
+          
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
+
         _userId = user.uid;
         // Lấy thông tin bổ sung từ Firestore
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
@@ -101,8 +129,11 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<String?> login(String usernameOrEmail, String password) async {
+  Future<String?> login(String usernameOrEmail, String password, {bool rememberMe = true}) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', rememberMe);
+
       String resolvedEmail = usernameOrEmail.trim();
       if (!resolvedEmail.contains('@')) {
         // Query Firestore to find the user with this username
@@ -212,11 +243,23 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     if (_userId != null) {
-      await NotificationService().removeTokenFromFirestore(_userId!);
+      await NotificationService().removeTokenFromFirestore(_userId!).catchError((e) => debugPrint('Error removing FCM token: $e'));
     }
-    await FirebaseAuth.instance.signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.setBool('remember_me', false);
+    await FirebaseAuth.instance.signOut();
+    
+    _presenceService?.dispose();
+    _presenceService = null;
+    _userId = null;
+    _username = null;
+    _email = null;
+    _fullName = null;
+    _avatarUrl = null;
+    _bio = null;
+    _shareCode = null;
+    _status = AuthStatus.unauthenticated;
+    
     notifyListeners();
   }
 
