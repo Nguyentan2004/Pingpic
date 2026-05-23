@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pingpic/l10n/app_localizations.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/web_safe_image/web_safe_image.dart';
 import '../../providers/notification_provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -28,8 +30,14 @@ class NotificationsPage extends StatelessWidget {
         return l10n.notificationFriendAcceptedTitle;
       case 'moment_posted':
         return l10n.notificationMomentPostedTitle;
+      case 'like':
+        return l10n.notificationLikedMomentTitle;
+      case 'comment':
+        return l10n.notificationCommentedMomentTitle;
+      case 'reply':
+        return l10n.notificationRepliedCommentTitle;
       default:
-        return notification.title;
+        return '';
     }
   }
 
@@ -41,8 +49,14 @@ class NotificationsPage extends StatelessWidget {
         return l10n.notificationFriendAcceptedBody(notification.senderName);
       case 'moment_posted':
         return l10n.notificationMomentPostedBody(notification.senderName);
+      case 'like':
+        return l10n.notificationLikedMoment(notification.senderName);
+      case 'comment':
+        return l10n.notificationCommentedMoment(notification.senderName);
+      case 'reply':
+        return l10n.notificationRepliedComment(notification.senderName);
       default:
-        return notification.body;
+        return '';
     }
   }
 
@@ -58,22 +72,22 @@ class NotificationsPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: cardBg,
-                border: Border.all(color: borderCol),
-              ),
-              clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: cardBg,
+              border: Border.all(color: borderCol),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  AppBar(
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    title: Row(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
                       children: [
                         CircleAvatar(
                           radius: 16,
@@ -82,20 +96,34 @@ class NotificationsPage extends StatelessWidget {
                               ? NetworkImage(notification.senderAvatar)
                               : null,
                           child: notification.senderAvatar.isEmpty
-                              ? Text(notification.senderName.isNotEmpty ? notification.senderName[0] : '?', style: const TextStyle(color: AppColors.primary, fontSize: 12))
+                              ? Text(
+                                  notification.senderName.isNotEmpty ? notification.senderName[0] : '?',
+                                  style: const TextStyle(color: AppColors.primary, fontSize: 12),
+                                )
                               : null,
                         ),
-                        const SizedBox(width: 8),
-                        Text(notification.senderName, style: TextStyle(color: textCol, fontSize: 14, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            notification.senderName,
+                            style: TextStyle(
+                              color: textCol,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: textCol, size: 20),
+                          onPressed: () => Navigator.pop(dialogContext),
+                          constraints: const BoxConstraints(),
+                          style: IconButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                          ),
+                        )
                       ],
                     ),
-                    automaticallyImplyLeading: false,
-                    actions: [
-                      IconButton(
-                        icon: Icon(Icons.close, color: textCol),
-                        onPressed: () => Navigator.pop(dialogContext),
-                      )
-                    ],
                   ),
                   AspectRatio(
                     aspectRatio: 3 / 4,
@@ -121,7 +149,7 @@ class NotificationsPage extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -230,8 +258,30 @@ class NotificationsPage extends StatelessWidget {
                   if (!item.isRead) {
                     provider.markAsRead(item.id);
                   }
-                  if (item.type == 'moment_posted') {
-                    _showMomentPreview(context, item, isDark, l10n);
+                  if (item.type == 'moment_posted' ||
+                      item.type == 'like' ||
+                      item.type == 'comment' ||
+                      item.type == 'reply') {
+                    if (item.postId != null && item.postId!.isNotEmpty) {
+                      final authProvider = context.read<AuthProvider>();
+                      final String ownerId = item.postOwnerId ?? (item.type == 'moment_posted' ? item.senderId : authProvider.userId ?? '');
+                      final String ownerName = (ownerId == authProvider.userId)
+                          ? (authProvider.fullName ?? '')
+                          : item.senderName;
+                      final String ownerAvatar = (ownerId == authProvider.userId)
+                          ? (authProvider.avatarUrl ?? '')
+                          : item.senderAvatar;
+
+                      context.push(
+                        '/profile/moments'
+                        '?userId=$ownerId'
+                        '&senderName=${Uri.encodeComponent(ownerName)}'
+                        '&senderAvatar=${Uri.encodeComponent(ownerAvatar)}'
+                        '&momentId=${item.postId}',
+                      );
+                    }
+                  } else if (item.type == 'friend_request' || item.type == 'friend_accepted') {
+                    context.push('/profile?userId=${item.senderId}');
                   }
                 },
               );
@@ -271,16 +321,41 @@ class _NotificationTile extends StatelessWidget {
         ? (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.04))
         : AppColors.primary.withOpacity(0.2);
 
-    IconData _getIcon() {
+    IconData getIcon() {
       switch (notification.type) {
         case 'friend_request':
           return Icons.person_add_rounded;
         case 'friend_accepted':
-          return Icons.group_add_rounded;
+          return Icons.check_circle_rounded;
         case 'moment_posted':
           return Icons.photo_library_rounded;
+        case 'like':
+          return Icons.favorite_rounded;
+        case 'comment':
+          return Icons.chat_bubble_rounded;
+        case 'reply':
+          return Icons.reply_rounded;
         default:
           return Icons.notifications_rounded;
+      }
+    }
+
+    Color getBadgeBgColor() {
+      switch (notification.type) {
+        case 'like':
+          return Colors.redAccent;
+        case 'comment':
+          return Colors.blueAccent;
+        case 'reply':
+          return Colors.purpleAccent;
+        case 'friend_request':
+          return Colors.orangeAccent;
+        case 'friend_accepted':
+          return Colors.green;
+        case 'moment_posted':
+          return AppColors.primary;
+        default:
+          return Colors.grey;
       }
     }
 
@@ -296,18 +371,50 @@ class _NotificationTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Sender Avatar
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: isDark ? AppColors.darkCard : Colors.grey[200],
-              backgroundImage: notification.senderAvatar.isNotEmpty && 
-                      !notification.senderAvatar.contains('pravatar.cc')
-                  ? NetworkImage(notification.senderAvatar)
-                  : null,
-              child: notification.senderAvatar.isEmpty || 
-                      notification.senderAvatar.contains('pravatar.cc')
-                  ? Icon(_getIcon(), color: isDark ? Colors.white70 : AppColors.textLight, size: 20)
-                  : null,
+            // Sender Avatar with badge
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: isDark ? AppColors.darkCard : Colors.grey[200],
+                  backgroundImage: notification.senderAvatar.isNotEmpty && 
+                          !notification.senderAvatar.contains('pravatar.cc')
+                      ? NetworkImage(notification.senderAvatar)
+                      : null,
+                  child: notification.senderAvatar.isEmpty || 
+                          notification.senderAvatar.contains('pravatar.cc')
+                      ? Text(
+                          notification.senderName.isNotEmpty ? notification.senderName[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : AppColors.textLight,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                ),
+                Positioned(
+                  right: -4,
+                  bottom: -4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: getBadgeBgColor(),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? AppColors.darkSurface : Colors.white,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(
+                      getIcon(),
+                      size: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 12),
             
@@ -348,9 +455,8 @@ class _NotificationTile extends StatelessWidget {
             
             const SizedBox(width: 8),
 
-            // Thumbnail preview (for moment_posted)
-            if (notification.type == 'moment_posted' && 
-                notification.imageUrl != null && 
+            // Thumbnail preview
+            if (notification.imageUrl != null && 
                 notification.imageUrl!.isNotEmpty)
               Container(
                 width: 44,

@@ -389,6 +389,30 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
+  String get notificationLikedMomentTitle => 'Lượt thích mới';
+
+  @override
+  String notificationLikedMoment(String name) {
+    return '$name đã thích khoảnh khắc của bạn.';
+  }
+
+  @override
+  String get notificationCommentedMomentTitle => 'Bình luận mới';
+
+  @override
+  String notificationCommentedMoment(String name) {
+    return '$name đã bình luận về khoảnh khắc của bạn.';
+  }
+
+  @override
+  String get notificationRepliedCommentTitle => 'Phản hồi mới';
+
+  @override
+  String notificationRepliedComment(String name) {
+    return '$name đã phản hồi bình luận của bạn.';
+  }
+
+  @override
   String get uploadDevice => 'Tải ảnh từ thiết bị';
 
   @override

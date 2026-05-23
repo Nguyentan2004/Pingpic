@@ -123,6 +123,28 @@
   "notificationMomentPostedTitle": "Khoảnh khắc mới được đăng",
   "notificationMomentPostedBody": "{name} đã đăng một ảnh mới.",
 
+  "notificationLikedMomentTitle": "Lượt thích mới",
+  "notificationLikedMoment": "{name} đã thích khoảnh khắc của bạn.",
+  "@notificationLikedMoment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "notificationCommentedMomentTitle": "Bình luận mới",
+  "notificationCommentedMoment": "{name} đã bình luận về khoảnh khắc của bạn.",
+  "@notificationCommentedMoment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "notificationRepliedCommentTitle": "Phản hồi mới",
+  "notificationRepliedComment": "{name} đã phản hồi bình luận của bạn.",
+  "@notificationRepliedComment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
   "uploadDevice": "Tải ảnh từ thiết bị",
   "uploadCaptionHint": "Thêm mô tả...",
   "uploadSuccess": "Tải khoảnh khắc lên thành công!",

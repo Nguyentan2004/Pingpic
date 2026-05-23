@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/dummy_data.dart';
 import '../../core/utils/time_formatter.dart';
+import '../../core/services/in_app_notification_service.dart';
 import '../models/comment_model.dart';
 
 class _UserCacheEntry {
@@ -369,6 +369,8 @@ class PhotoRepository {
           'title': 'New Moment Posted',
           'body': '${userData['fullName'] ?? 'A friend'} posted a new photo.',
           'imageUrl': downloadUrl,
+          'postId': docRef.id,
+          'postOwnerId': currentUserId,
           'createdAt': FieldValue.serverTimestamp(),
           'isRead': false,
         });
@@ -432,18 +434,43 @@ class PhotoRepository {
       if (currentUserId == null) throw Exception('User not authenticated');
 
       final docRef = _firestore.collection('moments').doc(momentId);
+
+      // Fetch post owner and imageUrl for notification
+      final momentDoc = await docRef.get();
+      final momentData = momentDoc.data() ?? {};
+      final postOwnerId = momentData['userId'] as String? ?? '';
+      final postImageUrl = momentData['imageUrl'] as String? ?? '';
+
       if (currentlyLiked) {
         // If already liked, unlike it: remove uid from likes and decrement reactionCount
         await docRef.update({
           'likes': FieldValue.arrayRemove([currentUserId]),
           'reactionCount': FieldValue.increment(-1),
         });
+        // Remove like notification
+        if (postOwnerId.isNotEmpty) {
+          await InAppNotificationService.sendLikeNotification(
+            momentId: momentId,
+            postOwnerId: postOwnerId,
+            postImageUrl: postImageUrl,
+            like: false,
+          );
+        }
       } else {
         // If not liked yet, like it: add uid to likes and increment reactionCount
         await docRef.update({
           'likes': FieldValue.arrayUnion([currentUserId]),
           'reactionCount': FieldValue.increment(1),
         });
+        // Send like notification
+        if (postOwnerId.isNotEmpty) {
+          await InAppNotificationService.sendLikeNotification(
+            momentId: momentId,
+            postOwnerId: postOwnerId,
+            postImageUrl: postImageUrl,
+            like: true,
+          );
+        }
       }
     } catch (e) {
       throw Exception('Failed to toggle like: $e');
@@ -480,7 +507,14 @@ class PhotoRepository {
       final userDoc = await _firestore.collection('users').doc(currentUserId).get();
       final userData = userDoc.data() ?? {};
 
-      await _firestore
+      // Fetch post owner + imageUrl for notification
+      final momentDoc = await _firestore.collection('moments').doc(momentId).get();
+      final momentData = momentDoc.data() ?? {};
+      final postOwnerId = momentData['userId'] as String? ?? '';
+      final postImageUrl = momentData['imageUrl'] as String? ?? '';
+
+      // Write comment
+      final commentRef = await _firestore
           .collection('moments')
           .doc(momentId)
           .collection('comments')
@@ -493,6 +527,28 @@ class PhotoRepository {
         'senderName': userData['fullName'] ?? 'Someone',
         'senderAvatar': userData['avatarUrl'] ?? '',
       });
+
+      // Fire notification:
+      // If the sender IS the post owner, they are replying to a commenter → send reply notif
+      // Otherwise, the sender is commenting on someone else's post → send comment notif
+      if (currentUserId == postOwnerId) {
+        // Post owner replying to commenter (receiverId is the original commenter)
+        await InAppNotificationService.sendReplyNotification(
+          momentId: momentId,
+          postOwnerId: postOwnerId,
+          postImageUrl: postImageUrl,
+          originalCommenterId: receiverId,
+          replyCommentId: commentRef.id,
+        );
+      } else if (postOwnerId.isNotEmpty) {
+        // Someone commenting on the post owner's moment
+        await InAppNotificationService.sendCommentNotification(
+          momentId: momentId,
+          postOwnerId: postOwnerId,
+          postImageUrl: postImageUrl,
+          commentId: commentRef.id,
+        );
+      }
     } catch (e) {
       throw Exception('Failed to add comment: $e');
     }

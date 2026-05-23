@@ -18,12 +18,14 @@ class FriendProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSearching = false;
   bool _isDisposed = false;
+  String? _searchError;
 
   List<UserModel> get friends => _friends;
   List<FriendRequestModel> get pendingRequests => _pendingRequests;
   List<UserModel> get searchResults => _searchResults;
   bool get isLoading => _isLoading;
   bool get isSearching => _isSearching;
+  String? get searchError => _searchError;
 
   /// Tải dữ liệu ban đầu (Bạn bè + Lời mời)
   Future<void> fetchFriendsData() async {
@@ -79,6 +81,7 @@ class FriendProvider extends ChangeNotifier {
 
           requests.add(FriendRequestModel(
             id: doc.id,
+            requesterId: requesterId,
             requesterName: requesterData['fullName'] ?? 'Unknown',
             requesterAvatar: requesterData['avatarUrl'] ?? '',
           ));
@@ -213,17 +216,21 @@ class FriendProvider extends ChangeNotifier {
   Future<void> searchUsers(String query) async {
     if (query.isEmpty) {
       _searchResults = [];
+      _searchError = null;
       notifyListeners();
       return;
     }
 
     _isSearching = true;
+    _searchError = null;
     notifyListeners();
 
     try {
       _searchResults = await _repository.searchUsers(query);
     } catch (e) {
       debugPrint('Error searching users: $e');
+      _searchError = e.toString();
+      _searchResults = [];
     } finally {
       _isSearching = false;
       notifyListeners();

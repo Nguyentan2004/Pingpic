@@ -238,20 +238,62 @@ class _FriendsPageState extends State<FriendsPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     children: [
                       // ── Search Results ─────────────────────────────────────
-                      if (provider.searchResults.isNotEmpty) ...[
-                        _buildSectionHeader(l10n.friendsSearchResults),
-                        ...provider.searchResults.map((user) => _UserListTile(
-                          user: user,
-                          isDark: isDark,
-                          l10n: l10n,
-                          onAction: () => provider.sendRequest(user.id),
-                          actionLabel: user.isFriend 
-                            ? l10n.navFriends
-                            : (user.isRequested ? l10n.friendRequested : l10n.addFriendButton),
-                          isPending: user.isRequested,
-                          isFriend: user.isFriend,
-                        )),
-                        Divider(color: isDark ? Colors.white10 : AppColors.black10, height: 32),
+                      if (_searchCtrl.text.isNotEmpty) ...[ 
+                        if (provider.isSearching)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                          )
+                        else if (provider.searchError != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 40),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Lỗi tìm kiếm. Thử lại sau.',
+                                  style: TextStyle(color: isDark ? Colors.white70 : AppColors.textLight),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  provider.searchError!,
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (provider.searchResults.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 30),
+                            child: Column(
+                              children: [
+                                Icon(Icons.search_off_rounded, size: 44, color: AppColors.textMuted.withOpacity(0.5)),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Không tìm thấy "${_searchCtrl.text}"',
+                                  style: TextStyle(color: isDark ? Colors.white60 : AppColors.textLight),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        else ...[
+                          _buildSectionHeader(l10n.friendsSearchResults),
+                          ...provider.searchResults.map((user) => _UserListTile(
+                            user: user,
+                            isDark: isDark,
+                            l10n: l10n,
+                            onAction: () => provider.sendRequest(user.id),
+                            actionLabel: user.isFriend 
+                              ? l10n.navFriends
+                              : (user.isRequested ? l10n.friendRequested : l10n.addFriendButton),
+                            isPending: user.isRequested,
+                            isFriend: user.isFriend,
+                          )),
+                          Divider(color: isDark ? Colors.white10 : AppColors.black10, height: 32),
+                        ],
                       ],
 
                       // ── Pending Requests ───────────────────────────────────
@@ -372,105 +414,111 @@ class _UserListTile extends StatelessWidget {
     final subtextCol = isDark ? AppColors.textMuted : AppColors.textLight;
     final borderCol = isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBg,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () => context.push('/profile?userId=${user.id}'),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderCol),
-      ),
-      child: Row(
-        children: [
-          Stack(
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderCol),
+          ),
+          child: Row(
             children: [
-              CircleAvatar(
-                backgroundColor: AppColors.primary.withOpacity(0.2),
-                backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) 
-                  ? NetworkImage(user.avatarUrl!) 
-                  : null,
-                child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                  ? Text(user.fullName.isNotEmpty ? user.fullName[0] : '?', style: const TextStyle(color: AppColors.primary)) 
-                  : null,
-              ),
-              if (isFriend && user.isOnline)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: cardBg,
-                        width: 2,
+              Stack(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                    backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) 
+                      ? NetworkImage(user.avatarUrl!) 
+                      : null,
+                    child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
+                      ? Text(user.fullName.isNotEmpty ? user.fullName[0] : '?', style: const TextStyle(color: AppColors.primary)) 
+                      : null,
+                  ),
+                  if (isFriend && user.isOnline)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: cardBg,
+                            width: 2,
+                          ),
+                        ),
                       ),
                     ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.fullName,
+                      style: TextStyle(color: textCol, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          '@${user.username}',
+                          style: TextStyle(color: subtextCol, fontSize: 13),
+                        ),
+                        if (isFriend) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '•',
+                            style: TextStyle(color: subtextCol, fontSize: 12),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              user.isOnline ? l10n.friendsOnlineStatus : _formatLastActive(user.lastActive, l10n),
+                              style: TextStyle(
+                                color: user.isOnline ? AppColors.success : subtextCol,
+                                fontSize: 12,
+                                fontWeight: user.isOnline ? FontWeight.w500 : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (isFriend && onUnfriend != null)
+                IconButton(
+                  icon: const Icon(Icons.person_remove_outlined, color: Colors.redAccent, size: 20),
+                  tooltip: l10n.friendsUnfriendConfirmTitle,
+                  onPressed: onUnfriend,
+                )
+              else if (actionLabel != null)
+                ElevatedButton(
+                  onPressed: (isPending || isFriend) ? null : onAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isFriend ? Colors.transparent : AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
+                  child: Text(actionLabel!),
                 ),
             ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.fullName,
-                  style: TextStyle(color: textCol, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      '@${user.username}',
-                      style: TextStyle(color: subtextCol, fontSize: 13),
-                    ),
-                    if (isFriend) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        '•',
-                        style: TextStyle(color: subtextCol, fontSize: 12),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          user.isOnline ? l10n.friendsOnlineStatus : _formatLastActive(user.lastActive, l10n),
-                          style: TextStyle(
-                            color: user.isOnline ? AppColors.success : subtextCol,
-                            fontSize: 12,
-                            fontWeight: user.isOnline ? FontWeight.w500 : FontWeight.normal,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-          if (isFriend && onUnfriend != null)
-            IconButton(
-              icon: const Icon(Icons.person_remove_outlined, color: Colors.redAccent, size: 20),
-              tooltip: l10n.friendsUnfriendConfirmTitle,
-              onPressed: onUnfriend,
-            )
-          else if (actionLabel != null)
-            ElevatedButton(
-              onPressed: (isPending || isFriend) ? null : onAction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isFriend ? Colors.transparent : AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              child: Text(actionLabel!),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -498,71 +546,77 @@ class _RequestListTile extends StatelessWidget {
     final cardBg = isDark ? AppColors.primary.withOpacity(0.05) : AppColors.primary.withOpacity(0.03);
     final borderCol = isDark ? AppColors.primary.withOpacity(0.1) : AppColors.primary.withOpacity(0.08);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBg,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () => context.push('/profile?userId=${request.requesterId}'),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderCol),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.2),
-            backgroundImage: (request.requesterAvatar.isNotEmpty)
-                ? NetworkImage(request.requesterAvatar)
-                : null,
-            child: (request.requesterAvatar.isEmpty)
-                ? Text(
-                    request.requesterName.isNotEmpty ? request.requesterName[0] : '?',
-                    style: const TextStyle(color: AppColors.primary),
-                  )
-                : null,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderCol),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  request.requesterName,
-                  style: TextStyle(color: textCol, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  l10n.friendsWantsToBeFriends,
-                  style: TextStyle(color: subtextCol, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
-              TextButton(
-                onPressed: onAccept,
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
-                child: Text(l10n.friendsAccept),
+              CircleAvatar(
+                backgroundColor: AppColors.primary.withOpacity(0.2),
+                backgroundImage: (request.requesterAvatar.isNotEmpty)
+                    ? NetworkImage(request.requesterAvatar)
+                    : null,
+                child: (request.requesterAvatar.isEmpty)
+                    ? Text(
+                        request.requesterName.isNotEmpty ? request.requesterName[0] : '?',
+                        style: const TextStyle(color: AppColors.primary),
+                      )
+                    : null,
               ),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: onReject,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? Colors.white70 : AppColors.textLight,
-                  side: BorderSide(color: isDark ? Colors.white24 : AppColors.black24),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.requesterName,
+                      style: TextStyle(color: textCol, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      l10n.friendsWantsToBeFriends,
+                      style: TextStyle(color: subtextCol, fontSize: 12),
+                    ),
+                  ],
                 ),
-                child: Text(l10n.friendsReject),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: onAccept,
+                    style: TextButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    child: Text(l10n.friendsAccept),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: onReject,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white70 : AppColors.textLight,
+                      side: BorderSide(color: isDark ? Colors.white24 : AppColors.black24),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    child: Text(l10n.friendsReject),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

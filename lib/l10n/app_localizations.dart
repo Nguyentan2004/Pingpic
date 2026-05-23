@@ -782,6 +782,42 @@ abstract class AppLocalizations {
   /// **'{name} posted a new photo.'**
   String notificationMomentPostedBody(Object name);
 
+  /// No description provided for @notificationLikedMomentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Like'**
+  String get notificationLikedMomentTitle;
+
+  /// No description provided for @notificationLikedMoment.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} liked your moment.'**
+  String notificationLikedMoment(String name);
+
+  /// No description provided for @notificationCommentedMomentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Comment'**
+  String get notificationCommentedMomentTitle;
+
+  /// No description provided for @notificationCommentedMoment.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} commented on your moment.'**
+  String notificationCommentedMoment(String name);
+
+  /// No description provided for @notificationRepliedCommentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New Reply'**
+  String get notificationRepliedCommentTitle;
+
+  /// No description provided for @notificationRepliedComment.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} replied to your comment.'**
+  String notificationRepliedComment(String name);
+
   /// No description provided for @uploadDevice.
   ///
   /// In en, this message translates to:

@@ -47,11 +47,13 @@ class UserModel {
 
 class FriendRequestModel {
   final String id;
+  final String requesterId;
   final String requesterName;
   final String requesterAvatar;
 
   FriendRequestModel({
     required this.id,
+    required this.requesterId,
     required this.requesterName,
     required this.requesterAvatar,
   });
@@ -59,6 +61,7 @@ class FriendRequestModel {
   factory FriendRequestModel.fromJson(Map<String, dynamic> json) {
     return FriendRequestModel(
       id: json['id']?.toString() ?? '',
+      requesterId: json['requesterId']?.toString() ?? '',
       requesterName: json['requesterName'] ?? '',
       requesterAvatar: json['requesterAvatar'] ?? '',
     );

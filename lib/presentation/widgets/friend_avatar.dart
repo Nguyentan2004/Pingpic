@@ -282,6 +282,7 @@ class FriendStripWidget extends StatelessWidget {
               if (index == 0) return _AddFriendButton();
               final friend = friends[index - 1];
               return _FriendAvatar(
+                userId: friend.id,
                 name: friend.fullName,
                 avatarUrl: friend.avatarUrl ?? 'https://i.pravatar.cc/150?u=${friend.username}',
                 isOnline: friend.isOnline,
@@ -348,11 +349,13 @@ class _AddFriendButtonState extends State<_AddFriendButton> {
 }
 
 class _FriendAvatar extends StatefulWidget {
+  final String userId;
   final String name;
   final String avatarUrl;
   final bool isOnline;
 
   const _FriendAvatar({
+    required this.userId,
     required this.name,
     required this.avatarUrl,
     required this.isOnline,
@@ -369,78 +372,82 @@ class _FriendAvatarState extends State<_FriendAvatar> {
   Widget build(BuildContext context) {
     final shortName = widget.name.split(' ').first;
     return MouseRegion(
+      cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        transform: Matrix4.identity()..translate(0.0, _isHovered ? -3.0 : 0.0),
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: widget.isOnline
-                        ? const LinearGradient(
-                            colors: [AppColors.primary, AppColors.accent],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    color: widget.isOnline
-                        ? null
-                        : Colors.white.withOpacity(0.1),
-                  ),
-                  child: CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppColors.darkCard,
-                    child: widget.avatarUrl.isNotEmpty && !widget.avatarUrl.contains('pravatar.cc')
-                        ? ClipOval(
-                            child: WebSafeImage(
-                              imageUrl: widget.avatarUrl,
-                              fit: BoxFit.cover,
-                              memCacheWidth: 100,
-                              memCacheHeight: 100,
-                              placeholder: (context, url) => Container(
-                                color: AppColors.darkCard,
-                                padding: const EdgeInsets.all(8),
-                                child: const CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.primary),
+      child: GestureDetector(
+        onTap: () => context.push('/profile?userId=${widget.userId}'),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          transform: Matrix4.identity()..translate(0.0, _isHovered ? -3.0 : 0.0),
+          child: Column(
+            children: [
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: widget.isOnline
+                          ? const LinearGradient(
+                              colors: [AppColors.primary, AppColors.accent],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: widget.isOnline
+                          ? null
+                          : Colors.white.withOpacity(0.1),
+                    ),
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppColors.darkCard,
+                      child: widget.avatarUrl.isNotEmpty && !widget.avatarUrl.contains('pravatar.cc')
+                          ? ClipOval(
+                              child: WebSafeImage(
+                                imageUrl: widget.avatarUrl,
+                                fit: BoxFit.cover,
+                                memCacheWidth: 100,
+                                memCacheHeight: 100,
+                                placeholder: (context, url) => Container(
+                                  color: AppColors.darkCard,
+                                  padding: const EdgeInsets.all(8),
+                                  child: const CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.primary),
+                                ),
+                                errorWidget: (context, url, error) => const Icon(Icons.person, size: 24, color: Colors.white70),
                               ),
-                              errorWidget: (context, url, error) => const Icon(Icons.person, size: 24, color: Colors.white70),
-                            ),
-                          )
-                        : const Icon(Icons.person, size: 24, color: Colors.white70),
-                  ),
-                ),
-                if (widget.isOnline)
-                  Positioned(
-                    bottom: 2,
-                    right: 2,
-                    child: Container(
-                      width: 11,
-                      height: 11,
-                      decoration: BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.darkBackground, width: 2),
-                      ),
+                            )
+                          : const Icon(Icons.person, size: 24, color: Colors.white70),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              shortName,
-              style: TextStyle(
-                color: _isHovered ? Colors.white : AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+                  if (widget.isOnline)
+                    Positioned(
+                      bottom: 2,
+                      right: 2,
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: AppColors.darkBackground, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                shortName,
+                style: TextStyle(
+                  color: _isHovered ? Colors.white : AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

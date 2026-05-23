@@ -386,6 +386,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get notificationLikedMomentTitle => 'New Like';
+
+  @override
+  String notificationLikedMoment(String name) {
+    return '$name liked your moment.';
+  }
+
+  @override
+  String get notificationCommentedMomentTitle => 'New Comment';
+
+  @override
+  String notificationCommentedMoment(String name) {
+    return '$name commented on your moment.';
+  }
+
+  @override
+  String get notificationRepliedCommentTitle => 'New Reply';
+
+  @override
+  String notificationRepliedComment(String name) {
+    return '$name replied to your comment.';
+  }
+
+  @override
   String get uploadDevice => 'Upload from Device';
 
   @override

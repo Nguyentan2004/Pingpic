@@ -124,6 +124,28 @@
   "notificationMomentPostedTitle": "New Moment Posted",
   "notificationMomentPostedBody": "{name} posted a new photo.",
 
+  "notificationLikedMomentTitle": "New Like",
+  "notificationLikedMoment": "{name} liked your moment.",
+  "@notificationLikedMoment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "notificationCommentedMomentTitle": "New Comment",
+  "notificationCommentedMoment": "{name} commented on your moment.",
+  "@notificationCommentedMoment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "notificationRepliedCommentTitle": "New Reply",
+  "notificationRepliedComment": "{name} replied to your comment.",
+  "@notificationRepliedComment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
   "uploadDevice": "Upload from Device",
   "uploadCaptionHint": "Add a caption...",
   "uploadSuccess": "Photo uploaded successfully!",

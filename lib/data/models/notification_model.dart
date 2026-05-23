@@ -44,6 +44,19 @@ class NotificationModel {
     } else if (data['createdAt'] is String) {
       created = DateTime.tryParse(data['createdAt']) ?? DateTime.now();
     }
+
+    String? postId = data['postId'];
+    String? postOwnerId = data['postOwnerId'];
+
+    // Fallback for legacy moment_posted notifications where postId/postOwnerId weren't fields
+    if (postId == null && (data['type'] == 'moment_posted' || doc.id.startsWith('moment_'))) {
+      final parts = doc.id.split('_');
+      if (parts.length >= 3) {
+        postOwnerId = parts[1];
+        postId = parts[2];
+      }
+    }
+
     return NotificationModel(
       id: doc.id,
       senderId: data['senderId'] ?? '',
@@ -51,8 +64,8 @@ class NotificationModel {
       senderAvatar: data['senderAvatar'] ?? '',
       receiverId: data['receiverId'] ?? '',
       type: data['type'] ?? '',
-      postId: data['postId'],
-      postOwnerId: data['postOwnerId'],
+      postId: postId,
+      postOwnerId: postOwnerId,
       commentId: data['commentId'],
       imageUrl: data['imageUrl'],
       createdAt: created,

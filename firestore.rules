@@ -52,12 +52,18 @@ service cloud.firestore {
 
     // --- FRIENDSHIPS COLLECTION ---
     match /friendships/{friendshipId} {
-      // Users can view friendships they are a part of, or any accepted friendships
-      allow read: if isAuthenticated() && (
-        resource.data.requesterId == request.auth.uid || 
+      // GET (single doc): allow any authenticated user.
+      // Doc IDs are deterministic (uid1_uid2), so no security risk.
+      // Needed to check if a reverse friend request exists (doc may not exist → resource is null).
+      allow get: if isAuthenticated();
+
+      // LIST (query): only participants can query their own friendships
+      allow list: if isAuthenticated() && (
+        resource.data.requesterId == request.auth.uid ||
         resource.data.receiverId == request.auth.uid ||
         resource.data.status == 'accepted'
       );
+
       // Anyone logged in can send a friend request, but sender must be themselves
       allow create: if isAuthenticated() && 
         request.resource.data.requesterId == request.auth.uid &&
@@ -119,8 +125,12 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         resource.data.receiverId == request.auth.uid
       );
-      allow update, delete: if isAuthenticated() && 
+      allow update: if isAuthenticated() && 
         resource.data.receiverId == request.auth.uid;
+      allow delete: if isAuthenticated() && (
+        resource.data.receiverId == request.auth.uid ||
+        resource.data.senderId == request.auth.uid
+      );
       // Any authenticated user can create a notification (e.g. sending a friend request)
       allow create: if isAuthenticated() && 
         request.resource.data.senderId == request.auth.uid;

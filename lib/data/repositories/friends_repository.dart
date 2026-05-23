@@ -20,18 +20,21 @@ class FriendsRepository {
       if (isCode) {
         snapshot = await _firestore.collection('users')
             .where('shareCode', isEqualTo: trimmedQuery.toUpperCase())
+            .limit(20)
             .get();
 
         if (snapshot.docs.isEmpty) {
           snapshot = await _firestore.collection('users')
               .where('username', isGreaterThanOrEqualTo: trimmedQuery)
               .where('username', isLessThanOrEqualTo: '$trimmedQuery\uf8ff')
+              .limit(20)
               .get();
         }
       } else {
         snapshot = await _firestore.collection('users')
             .where('username', isGreaterThanOrEqualTo: trimmedQuery)
             .where('username', isLessThanOrEqualTo: '$trimmedQuery\uf8ff')
+            .limit(20)
             .get();
       }
 
@@ -148,6 +151,7 @@ class FriendsRepository {
 
         requests.add(FriendRequestModel(
           id: doc.id, // ID của bản ghi friendship
+          requesterId: data['requesterId'] ?? '',
           requesterName: requesterData['fullName'] ?? 'Unknown',
           requesterAvatar: requesterData['avatarUrl'] ?? '',
         ));
