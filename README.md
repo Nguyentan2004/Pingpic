@@ -1,4 +1,4 @@
-# 🚀 PingPic - Real-time Status Sharing Web App
+# 🚀 PingPic - Ứng dụng Chia sẻ Khoảnh khắc Thời gian thực
 
 [![Flutter](https://img.shields.io/badge/Flutter-v3.5.0-02569B?logo=flutter&logoColor=white&style=for-the-badge)](https://flutter.dev)
 [![Firebase](https://img.shields.io/badge/Firebase-Suite-FFCA28?logo=firebase&logoColor=black&style=for-the-badge)](https://firebase.google.com)
@@ -6,77 +6,77 @@
 [![Platform](https://img.shields.io/badge/Platforms-Web%20%7C%20Android%20%7C%20iOS-47A157?style=for-the-badge)](#)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](#)
 
-PingPic is a real-time, responsive, interactive status-sharing social application (inspired by Locket) built on a serverless architecture using **Flutter (Material 3)** and **Firebase**. 
+PingPic là một ứng dụng chia sẻ ảnh và khoảnh khắc thời gian thực (lấy cảm hứng từ concept của Locket) có thiết kế responsive đẹp mắt và tối ưu hóa mạnh mẽ cho nền tảng Web. Ứng dụng được xây dựng trên nền tảng **Flutter (Material 3)** và hệ sinh thái serverless của **Firebase**.
 
 ---
 
-## 🌟 Core Highlights
+## ⚡ Các Điểm Nhấn Công Nghệ Nổi Bật
 
-### ⚡ 1. 120 FPS Buttery-Smooth Snap Scrolling
-Discrete scroll wheel events (`PointerScrollEvent`) on desktop web browsers usually trigger frame stuttering and awkward jumps inside traditional `PageView` layouts. PingPic overrides default scroll physics using `NeverScrollableScrollPhysics` on Web/Desktop and employs a custom discrete pointer event listener to programmatically animate page snaps using cubic easings, achieving a buttery-smooth **120 FPS snapping feed**.
+### 🏎 1. Cuộn Feed Snap Mượt Mà 120 FPS
+Trên trình duyệt máy tính, con lăn chuột phát ra các tín hiệu cuộn rời rạc (`PointerScrollEvent`) thay vì dòng sự kiện vuốt liên tục như trên màn hình cảm ứng của điện thoại. Việc này thường gây ra hiện tượng khựng giật (jank) khi cuộn `PageView` trên Web. PingPic đã khắc phục triệt để bằng cách khóa hành vi cuộn mặc định (`NeverScrollableScrollPhysics`) trên Web/Desktop và lắng nghe tín hiệu cuộn chuột rời rạc để tự động kích hoạt animation chuyển trang thông qua các hàm nội suy Cubic, đạt hiệu năng mượt mà **120 FPS** trên mọi trình duyệt hiện đại (Chrome, Edge, Opera, v.v.).
 
-### 🪂 2. Capturing-Phase Web Drag-and-Drop Image Uploader
-Dragging and dropping a local image file directly into standard web applications usually triggers browser tab takeovers, navigating away to open the dropped image path. PingPic attaches native capturing-phase drag handlers (`dragover` and `drop` with `useCapture = true`) to the global document window. This bypasses browser redirections, converting dropped images (PNG, JPG, JPEG, WEBP) directly to raw memory byte arrays (`Uint8List`) for instant uploads.
+### 🪂 2. Kéo Thả File Ảnh Trực Tiếp Trên Web (Drag & Drop)
+Khi kéo thả một file ảnh từ máy tính vào trình duyệt, hành vi mặc định của trình duyệt là mở file đó ở một tab hoặc URL mới, làm gián đoạn ứng dụng web. PingPic sử dụng các event listener ở capturing-phase (`dragover` và `drop` với `useCapture = true`) gắn trực tiếp vào window của trình duyệt. Giải pháp này giúp chặn hoàn toàn hành vi điều hướng mặc định của trình duyệt, trích xuất dữ liệu ảnh (PNG, JPG, JPEG, WEBP) thành chuỗi byte thô (`Uint8List`) và đưa trực tiếp vào luồng xử lý của ứng dụng để hiển thị ảnh preview tức thì.
 
-### 🔒 3. Persistent Sessions & Auto-SignOut Gates
-Integrates a persistent login mechanism (`remember_me`) inside a custom `SharedPreferences` preference manager. If active, web browsers leverage Firebase Auth `Persistence.LOCAL` to survive refreshes and tab closures. If remember preference is disabled or deleted, the app startup sequence triggers an instant sign-out command, preventing authentication caches from leaking or displaying screen flashes.
-
----
-
-## 🎨 Feature Overview
-
-- **Auth Portal**: Validated login/registration screens with password strength and email checking.
-- **Three-Tier Responsive Layout**:
-  - *Desktop (≥ 1200px)*: Left navigation rail sidebar, central feed column, and right-side camera drawer.
-  - *Tablet (900px – 1199px)*: Top navigation bar, central feed, and side camera drawer.
-  - *Mobile (< 900px)*: Single-column full-width feed, bottom navigation bar, and floating action button (FAB) camera modal.
-- **Interactive Moment Editor**: Crop, draw pen strokes, type text overlays, search and add dynamic GIPHY moving GIFs, or place category-based emojis onto captured images before rendering them onto a single JPG output byte stream.
-- **Social Presence strip**: Connect with users, review incoming/outgoing requests, and monitor live online status indicators (green active dots).
-- **Moments Archive**: Display previous posts inside responsive grids or list views. Features hover image scaling animations and quick deletes that remove indices from Firestore and images from Storage concurrently.
+### 🔒 3. Ghi Nhớ Đăng Nhập & Bảo Mật Session
+Tích hợp tính năng "Ghi nhớ đăng nhập" thông qua `SharedPreferences`. Khi được kích hoạt, trình duyệt sẽ lưu trạng thái session cục bộ (`Persistence.LOCAL` của Firebase Auth) giúp người dùng giữ trạng thái đăng nhập ngay cả khi tải lại trang hoặc đóng trình duyệt. Ngược lại, nếu tùy chọn này bị tắt, ứng dụng khi khởi động sẽ tự động gọi lệnh `signOut()` để xoá sạch cache auth, ngăn chặn việc rò rỉ dữ liệu hoặc nháy trang chủ.
 
 ---
 
-## 🛠 Technology Stack
+## 🎨 Tổng Quan Các Tính Năng
 
-| Category | Technology | Purpose |
+- **Xác Thực Người Dùng**: Trang Đăng nhập/Đăng ký trực quan với tính năng kiểm tra định dạng email và độ mạnh mật khẩu client-side.
+- **Giao Diện Responsive 3 Layout**:
+  - *Desktop (≥ 1200px)*: Sidebar điều hướng bên trái, Feed ảnh ở giữa và Camera Panel cố định bên phải.
+  - *Tablet (900px – 1199px)*: Thanh điều hướng phía trên, Feed ảnh (60%) và Camera Panel (40%) xếp ngang.
+  - *Mobile (< 900px)*: Feed ảnh full-width, thanh điều hướng phía dưới và nút Camera nổi (FAB) để mở Camera dưới dạng Bottom Sheet.
+- **Moment Editor Tiện Ích**: Hỗ trợ vẽ tay tự do, chèn text overlay, chọn emoji sinh động hoặc tìm kiếm chèn ảnh GIF động từ GIPHY. Toàn bộ các layer vẽ và nhãn dán sẽ được Canvas Composer gom và nén phẳng thành một file ảnh JPG duy nhất trước khi lưu trữ.
+- **Mạng Lưới Bạn Bè & Trạng Thái Trực Tuyến**: Gửi/nhận lời mời kết bạn và hiển thị danh sách bạn bè kèm chấm xanh báo hiệu trạng thái online thời gian thực.
+- **Lịch Sử Khoảnh Khắc (My Moments)**: Cho phép xem lại toàn bộ ảnh đã đăng dưới dạng Lưới (Grid) hoặc Danh sách (List), tích hợp hiệu ứng hover zoom mượt mà và tính năng xoá ảnh đồng bộ dữ liệu Firestore & Firebase Storage.
+
+---
+
+## 🛠 Công Nghệ Sử Dụng
+
+| Danh Mục | Công Nghệ | Vai Trò & Mục Đích |
 | :--- | :--- | :--- |
-| **Core Runtime** | **Dart 3.x / Flutter SDK ^3.5.0** | Unified multi-platform codebase rendering. |
-| **State Container** | **Provider ^6.1.2** | Clean state trackings (Auth, Feed, Editor, Friends, Themes). |
-| **Routing Manager** | **GoRouter ^14.3.0** | Deep-linking, native address sync, and route guards. |
-| **Backend Suite** | **Firebase (Auth, Storage, Firestore, Cloud Messaging)** | Real-time database sync, user sessions, and binary storage. |
-| **Media Handling** | **ImagePicker & CachedNetworkImage** | Media selection and device-level image caching. |
-| **UX Additions** | **Shimmer & Lottie** | Loading skeleton card templates and dynamic heart animations. |
+| **Lập Trình Core** | **Dart 3.x / Flutter SDK ^3.5.0** | Biên dịch ứng dụng đa nền tảng chất lượng cao. |
+| **Quản Lý Trạng Thái** | **Provider ^6.1.2** | Đồng bộ hóa dữ liệu Auth, Feed, Editor, Friends, Themes. |
+| **Điều Hướng Trang** | **GoRouter ^14.3.0** | Hỗ trợ Deep-linking, đồng bộ URL Web và Route Guards. |
+| **Hệ Thống Backend** | **Firebase (Auth, Storage, Firestore, Cloud Messaging)** | Đăng nhập an toàn, lưu trữ ảnh thô và cơ sở dữ liệu thời gian thực. |
+| **Xử Lý Hình Ảnh** | **ImagePicker & CachedNetworkImage** | Chọn ảnh từ thiết bị/Webcam và tối ưu bộ nhớ đệm hình ảnh. |
+| **Trải Nghiệm UI/UX** | **Shimmer & Lottie** | Hiển thị skeleton loading mượt mà và các hiệu ứng tim bay. |
 
 ---
 
-## 📐 System Architecture
+## 📐 Kiến Trúc Hệ Thống
 
-PingPic follows standard **Clean Architecture & Feature-based Separation** guidelines to isolate business logic from database libraries and UI changes:
+PingPic tuân thủ chặt chẽ mô hình **Clean Architecture kết hợp Feature-based** để đảm bảo khả năng mở rộng lâu dài và tách biệt hoàn toàn giữa logic nghiệp vụ với thư viện UI:
 
 ```mermaid
 graph TD
-    subgraph Presentation_Layer [Presentation Layer]
+    subgraph Presentation_Layer [Presentation Layer - Tầng Giao Diện]
         A[Widgets / Screens] -->|Gestures / Listens| B[Provider State Managers]
     end
-    subgraph Data_Layer [Data Layer]
+    subgraph Data_Layer [Data Layer - Tầng Dữ Liệu]
         C[Repositories implementations] -->|Serializes JSON| D[Models]
         C -->|Calls| E[Firebase APIs / Local Storage]
     end
     B -->|Invokes Repos| C
 ```
 
-- **`lib/core/`**: Central router configs (`app_router.dart`), themes (`app_theme.dart`), stubs, and conditional compiler platform-independent helpers (e.g. `webcam_helper_web.dart`, `image_compressor_mobile.dart`).
-- **`lib/data/`**: Network schemas (Models) and data collectors (Repositories).
-- **`lib/presentation/`**: Screens, providers, and modular reusable visual components.
+- **`lib/core/`**: Cấu hình router (`app_router.dart`), themes hệ thống (`app_theme.dart`), và các helper hỗ trợ conditional compilation đa nền tảng (ví dụ: `webcam_helper_web.dart` tránh lỗi crash trên mobile).
+- **`lib/data/`**: Chứa các Model dữ liệu và Repository kết nối cơ sở dữ liệu.
+- **`lib/presentation/`**: Chứa giao diện người dùng, widget tái sử dụng và quản lý state.
 
 ---
 
-## 🗃 Firebase Database Schema
+## 🗃 Cấu Trúc Cơ Sở Dữ Liệu Firestore
 
-Firestore manages relational connections and snapshots through a simple, low-latency collection layout:
+Cơ sở dữ liệu NoSQL được thiết kế tối giản để hỗ trợ đồng bộ hóa thời gian thực:
 
 ```text
-users/ (User Profiles)
+users/ (Thông tin người dùng)
  ├── uid: String (Document ID)
  ├── email: String
  ├── fullName: String
@@ -84,18 +84,18 @@ users/ (User Profiles)
  ├── isOnline: Boolean
  └── lastSeen: Timestamp
 
-friendships/ (Friend Connections)
+friendships/ (Mối quan hệ bạn bè)
  ├── requesterId: String
  ├── receiverId: String
  └── status: String ("pending" | "accepted")
 
-moments/ (Post Entries)
+moments/ (Các bức ảnh khoảnh khắc)
  ├── userId: String
  ├── imageUrl: String
- ├── caption: String (Nullable)
+ ├── caption: String (Có thể rỗng)
  ├── createdAt: Timestamp
- ├── likes: Array [UIDs of users who liked]
- └── comments/ (Sub-collection)
+ ├── likes: Array [UID của người dùng đã thả tim]
+ └── comments/ (Sub-collection bình luận riêng tư)
       ├── senderId: String
       ├── receiverId: String
       ├── participants: Array [senderId, receiverId]
@@ -105,63 +105,63 @@ moments/ (Post Entries)
 
 ---
 
-## 🚀 Setup & Installation Guide
+## 🚀 Hướng Dẫn Cài Đặt & Chạy Dự Án
 
-### Prerequisites
+### Yêu Cầu Hệ Thống
 - **Flutter SDK**: `^3.5.0`
 - **Java**: Development Kit `17`
-- **Firebase CLI**: Activated and logged in.
+- **Firebase CLI**: Đã đăng nhập và cài đặt trên máy.
 
-### 1. Local Running
+### 1. Chạy Ứng Dụng Ở local
 ```bash
-# 1. Clone the repository
+# 1. Clone repository về máy
 git clone https://github.com/your-username/pingpic.git
 cd pingpic
 
-# 2. Fetch flutter packages
+# 2. Tải các package phụ thuộc
 flutter pub get
 
-# 3. Start local development server (Web CanvasKit)
+# 3. Chạy dự án trên Chrome (sử dụng CanvasKit để tối ưu hóa render đồ họa)
 flutter run -d chrome --web-renderer canvaskit
 ```
 
-### 2. Build Android Release APK
-We implemented a resilient Kotlin DSL reflection script in `android/app/build.gradle.kts` to allow AGP 8.x dynamic output naming without compiler crashes:
+### 2. Biên Dịch Android Release APK
+Ứng dụng sử dụng một script reflection Kotlin DSL đặc biệt trong `android/app/build.gradle.kts` để hỗ trợ tự động đổi tên file APK đầu ra tương thích với AGP 8.x mà không bị crash compiler:
 ```bash
-# Compile and build the release APK
+# Thực hiện build phiên bản release APK
 flutter build apk --release
-# The compiled APK is output to build/app/outputs/flutter-apk/PingPic-v1.0.0.apk
+# File APK biên dịch thành công sẽ nằm tại: build/app/outputs/flutter-apk/PingPic-v1.0.0.apk
 ```
 
-### 3. Web Deployment (Firebase Hosting)
+### 3. Triển Khai Lên Web (Firebase Hosting)
 ```bash
-# 1. Compile Flutter production build
+# 1. Build phiên bản web release
 flutter build web --release --web-renderer canvaskit
 
-# 2. Deploy to Firebase Hosting
+# 2. Deploy lên Firebase Hosting công cộng
 firebase deploy --only hosting
 ```
 
 ---
 
-## 📂 Documentation Hub
+## 📂 Trung Tâm Tài Liệu Dự Án
 
-All technical specifications, architectural designs, and implementation reviews are structured professionally inside the centralized `/docs` directory:
+Mọi tài liệu phân tích kỹ thuật chuyên sâu và kiến trúc chi tiết đã được sắp xếp khoa học trong thư mục `/docs` phục vụ mục đích lưu trữ và bàn giao dự án:
 
-- 🗂 **Architecture**:
-  - [`docs/architecture/FLUTTER_ARCHITECTURE.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/architecture/FLUTTER_ARCHITECTURE.md): Class mappings, clean layer separators, routing flows, and VM bindings.
-- 📋 **Summaries**:
-  - [`docs/summaries/FEATURES_SUMMARY.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/FEATURES_SUMMARY.md): Screen structures, mobile/desktop drawers, and canvas composting.
-  - [`docs/summaries/TECH_STACK.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/TECH_STACK.md): Package configurations, version mappings, and utility directories.
-  - [`docs/summaries/FIREBASE_ARCHITECTURE.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/FIREBASE_ARCHITECTURE.md): Database collections, rules, storage schemas, and snapshot streams.
-  - [`docs/summaries/SYSTEM_ANALYSIS.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/SYSTEM_ANALYSIS.md): Pointer scroll overrides, web drag capturing, and AGP build fixes.
-  - [`docs/summaries/PROJECT_PROGRESS.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/PROJECT_PROGRESS.md): Active development phases and forward-looking roadmap.
-- 📄 **Report & AI context**:
-  - [`docs/report/FINAL_REPORT_CONTEXT.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/report/FINAL_REPORT_CONTEXT.md): Unified technical summary for report generation and AI onboarding.
+- 🗂 **Kiến Trúc**:
+  - [`docs/architecture/FLUTTER_ARCHITECTURE.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/architecture/FLUTTER_ARCHITECTURE.md): Chi tiết sơ đồ layer, luồng đi của luồng GoRouter và Provider.
+- 📋 **Báo Cáo Tóm Tắt**:
+  - [`docs/summaries/FEATURES_SUMMARY.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/FEATURES_SUMMARY.md): Tổng quan các màn hình, responsive layouts và cơ chế render Canvas.
+  - [`docs/summaries/TECH_STACK.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/TECH_STACK.md): Bảng phân tích chi tiết phiên bản các thư viện và tác vụ tối ưu.
+  - [`docs/summaries/FIREBASE_ARCHITECTURE.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/FIREBASE_ARCHITECTURE.md): Thiết kế cấu trúc NoSQL, Storage, Security Rules và Realtime sync pipelines.
+  - [`docs/summaries/SYSTEM_ANALYSIS.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/SYSTEM_ANALYSIS.md): Phân tích giải pháp cuộn chuột mượt mà, kéo thả file trực tiếp và script build APK Android.
+  - [`docs/summaries/PROJECT_PROGRESS.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/summaries/PROJECT_PROGRESS.md): Lịch sử phát triển các Phase dự án và lộ trình tiếp theo.
+- 📄 **Context Hỗ Trợ Agent & Báo Cáo**:
+  - [`docs/report/FINAL_REPORT_CONTEXT.md`](file:///e:/University/HK2_25-26/PTUDDDDNT/doan/pingpic/docs/report/FINAL_REPORT_CONTEXT.md): Tổng hợp cô đọng toàn bộ thông tin dự án để làm ngữ cảnh viết báo cáo cuối kỳ.
 
 ---
 
-## 👥 Authors & Contributions
-- **Team**: Nguyễn Tấn Nhật (22521004) & Development Team
-- **University**: PTUDĐTDĐNT 25-26
-- **License**: Distributed under the MIT License.
+## 👥 Thành Viên Thực Hiện
+- **Nhóm sinh viên**: Nguyễn Tấn Nhật (22521004) & Nhóm phát triển dự án
+- **Môn học**: PTUDĐTDĐNT 25-26
+- **Giấy phép bản quyền**: MIT License.
