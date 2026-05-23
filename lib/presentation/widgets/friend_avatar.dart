@@ -25,6 +25,7 @@ class AppSidebar extends StatelessWidget {
     final navItems = [
       _NavItem(icon: Icons.home_rounded, label: l10n.navHome, path: '/home'),
       _NavItem(icon: Icons.group_rounded, label: l10n.navFriends, path: '/friends'),
+      _NavItem(icon: Icons.camera_alt_rounded, label: l10n.navCamera, path: '/camera'),
       _NavItem(icon: Icons.notifications_rounded, label: l10n.navNotifications, path: '/notifications'),
       _NavItem(icon: Icons.settings_rounded, label: l10n.navSettings, path: '/settings'),
     ];

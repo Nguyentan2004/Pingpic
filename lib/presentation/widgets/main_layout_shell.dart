@@ -25,8 +25,8 @@ class MainLayoutShell extends StatefulWidget {
 
 class _MainLayoutShellState extends State<MainLayoutShell> {
   // Responsive breakpoints
-  static const double _kTabletBreakpoint = 900;
-  static const double _kDesktopBreakpoint = 1200;
+  static const double _kTabletBreakpoint = 600;
+  static const double _kDesktopBreakpoint = 900;
 
   @override
   Widget build(BuildContext context) {
@@ -111,9 +111,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
               child: _buildTopBar(),
             )
           : null,
-      body: widget.child,
-      floatingActionButton: isHome ? _buildCameraFAB() : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: SafeArea(child: widget.child),
       bottomNavigationBar: _buildBottomNavBar(currentPath),
     );
   }
@@ -194,6 +192,7 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
     final navItems = [
       _BottomNavItem(icon: Icons.home_rounded, label: l10n.navHome, path: '/home'),
       _BottomNavItem(icon: Icons.group_rounded, label: l10n.navFriends, path: '/friends'),
+      _BottomNavItem(icon: Icons.camera_alt_rounded, label: l10n.navCamera, path: '/camera'),
       _BottomNavItem(icon: Icons.notifications_rounded, label: l10n.navNotifications, path: '/notifications'),
       _BottomNavItem(icon: Icons.person_rounded, label: l10n.navProfile, path: '/profile'),
     ];
@@ -201,35 +200,39 @@ class _MainLayoutShellState extends State<MainLayoutShell> {
     int selectedIndex = 0;
     if (currentPath == '/home') selectedIndex = 0;
     else if (currentPath == '/friends') selectedIndex = 1;
-    else if (currentPath == '/notifications') selectedIndex = 2;
-    else if (currentPath == '/profile' || currentPath == '/settings') selectedIndex = 3;
+    else if (currentPath == '/camera') selectedIndex = 2;
+    else if (currentPath == '/notifications') selectedIndex = 3;
+    else if (currentPath == '/profile' || currentPath == '/settings') selectedIndex = 4;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final navBg = isDark ? AppColors.darkSurface : Colors.white;
 
     return Container(
-      height: 64,
+      height: 64 + MediaQuery.of(context).padding.bottom,
       decoration: BoxDecoration(
         color: navBg,
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(navItems.length, (i) {
-          final item = navItems[i];
-          final isSelected = selectedIndex == i;
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(navItems.length, (i) {
+            final item = navItems[i];
+            final isSelected = selectedIndex == i;
 
-          if (i == 2) {
-            return Consumer<NotificationProvider>(
-              builder: (context, notifProvider, child) {
-                final unreadCount = notifProvider.unreadCount;
-                return _buildBottomNavButton(item, isSelected, badgeCount: unreadCount);
-              },
-            );
-          }
+            if (i == 3) {
+              return Consumer<NotificationProvider>(
+                builder: (context, notifProvider, child) {
+                  final unreadCount = notifProvider.unreadCount;
+                  return _buildBottomNavButton(item, isSelected, badgeCount: unreadCount);
+                },
+              );
+            }
 
-          return _buildBottomNavButton(item, isSelected);
-        }),
+            return _buildBottomNavButton(item, isSelected);
+          }),
+        ),
       ),
     );
   }

@@ -110,6 +110,12 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get navHome;
 
+  /// No description provided for @navCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get navCamera;
+
   /// No description provided for @navFriends.
   ///
   /// In en, this message translates to:

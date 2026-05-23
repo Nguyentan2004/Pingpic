@@ -65,11 +65,6 @@ class AppRouter {
           builder: (context, state) => const RegisterPage(),
         ),
         GoRoute(
-          path: '/camera',
-          name: 'camera',
-          builder: (context, state) => const CameraPage(),
-        ),
-        GoRoute(
           path: '/history',
           name: 'history',
           builder: (context, state) => const HistoryPage(),
@@ -83,6 +78,11 @@ class AppRouter {
               path: '/home',
               name: 'home',
               builder: (context, state) => const HomePage(),
+            ),
+            GoRoute(
+              path: '/camera',
+              name: 'camera',
+              builder: (context, state) => const CameraPage(),
             ),
             GoRoute(
               path: '/friends',

@@ -15,6 +15,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get navHome => 'Trang chủ';
 
   @override
+  String get navCamera => 'Máy ảnh';
+
+  @override
   String get navFriends => 'Bạn bè';
 
   @override

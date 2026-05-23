@@ -3,6 +3,7 @@
   "appTitle": "PingPic",
   
   "navHome": "Home",
+  "navCamera": "Camera",
   "navFriends": "Friends",
   "navNotifications": "Notifications",
   "notificationsTitle": "Notifications",

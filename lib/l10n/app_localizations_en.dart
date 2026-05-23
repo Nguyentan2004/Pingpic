@@ -15,6 +15,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navHome => 'Home';
 
   @override
+  String get navCamera => 'Camera';
+
+  @override
   String get navFriends => 'Friends';
 
   @override

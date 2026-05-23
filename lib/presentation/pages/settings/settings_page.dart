@@ -240,37 +240,43 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ── SECTION 1 & 2: LANGUAGE & APPEARANCE ──
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader(l10n.settingsLanguage, textColor),
-                          const SizedBox(height: 8),
-                          _buildLanguageSelector(themeProvider),
-                        ],
+                if (MediaQuery.of(context).size.width < 600) ...[
+                  _buildSectionHeader(l10n.settingsAppearance, textColor),
+                  const SizedBox(height: 8),
+                  _buildMobileSettingsList(themeProvider, isDark, cardColor, borderColor, textColor, l10n),
+                ] else ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionHeader(l10n.settingsLanguage, textColor),
+                            const SizedBox(height: 8),
+                            _buildLanguageSelector(themeProvider),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionHeader(l10n.settingsAppearance, textColor),
-                          const SizedBox(height: 8),
-                          _buildAppearanceSelector(themeProvider),
-                        ],
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionHeader(l10n.settingsAppearance, textColor),
+                            const SizedBox(height: 8),
+                            _buildAppearanceSelector(themeProvider),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
 
 
@@ -617,6 +623,44 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-
-
+  Widget _buildMobileSettingsList(ThemeProvider themeProvider, bool isDark, Color cardColor, Color borderColor, Color textColor, AppLocalizations l10n) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.dark_mode_rounded, color: AppColors.primary),
+            title: Text(l10n.settingsDarkMode, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 14)),
+            trailing: Switch.adaptive(
+              value: themeProvider.isDarkMode,
+              activeColor: AppColors.primary,
+              onChanged: (val) {
+                themeProvider.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+              },
+            ),
+          ),
+          Divider(color: borderColor, height: 1),
+          ListTile(
+            leading: const Icon(Icons.language_rounded, color: AppColors.primary),
+            title: Text(l10n.settingsLanguage, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: Text(
+              themeProvider.locale.languageCode == 'vi' ? 'Tiếng Việt' : 'English',
+              style: TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 12),
+            ),
+            trailing: Switch.adaptive(
+              value: themeProvider.locale.languageCode == 'vi',
+              activeColor: AppColors.primary,
+              onChanged: (val) {
+                themeProvider.changeLocale(val ? 'vi' : 'en');
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

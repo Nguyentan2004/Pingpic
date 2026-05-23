@@ -12,6 +12,7 @@ import '../providers/feed_provider.dart';
 import '../../app.dart';
 import '../../data/repositories/photo_repository.dart';
 import '../../data/models/comment_model.dart';
+import 'comments_bottom_sheet.dart';
 import 'package:pingpic/l10n/app_localizations.dart';
 
 
@@ -31,7 +32,7 @@ class PhotoCard extends StatefulWidget {
 }
 
 class _PhotoCardState extends State<PhotoCard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final PhotoRepository _photoRepo = PhotoRepository();
   bool _isHovered = false;
   late AnimationController _heartController;
@@ -71,7 +72,11 @@ class _PhotoCardState extends State<PhotoCard>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final currentUserId = context.watch<AuthProvider>().userId;
     final isLiked = widget.photo.likes.contains(currentUserId);
 
@@ -340,7 +345,7 @@ class _PhotoCardState extends State<PhotoCard>
                                 builder: (_, __) => Transform.scale(
                                   scale: _heartScale.value,
                                   child: Container(
-                                    padding: const EdgeInsets.all(10),
+                                    padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
                                       color: isLiked
                                           ? AppColors.primary.withOpacity(0.9)
@@ -381,19 +386,29 @@ class _PhotoCardState extends State<PhotoCard>
             children: [
               GestureDetector(
                 onTap: () {
-                  setState(() {
-                    _isReplyExpanded = !_isReplyExpanded;
-                    if (_isReplyExpanded) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _replyFocusNode.requestFocus();
-                      });
-                    } else {
-                      _replyFocusNode.unfocus();
-                    }
-                  });
+                  final isMobile = MediaQuery.of(context).size.width < 600;
+                  if (isMobile) {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => CommentsBottomSheet(photo: widget.photo),
+                    );
+                  } else {
+                    setState(() {
+                      _isReplyExpanded = !_isReplyExpanded;
+                      if (_isReplyExpanded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _replyFocusNode.requestFocus();
+                        });
+                      } else {
+                        _replyFocusNode.unfocus();
+                      }
+                    });
+                  }
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: _isReplyExpanded ? AppColors.primary : Colors.black38,
                     shape: BoxShape.circle,
