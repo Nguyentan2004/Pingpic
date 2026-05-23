@@ -1,15 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Supported notification types:
+/// - 'like'            : Someone liked your moment
+/// - 'comment'         : Someone commented on your moment
+/// - 'reply'           : Someone replied to your comment
+/// - 'friend_request'  : Someone sent you a friend request
+/// - 'friend_accepted' : Someone accepted your friend request
+/// - 'moment_posted'   : A friend posted a new moment
 class NotificationModel {
   final String id;
   final String senderId;
   final String senderName;
   final String senderAvatar;
   final String receiverId;
-  final String type; // 'friend_request', 'friend_accepted', 'moment_posted'
-  final String title;
-  final String body;
-  final String? imageUrl;
+  final String type;
+  final String? postId;       // momentId for like/comment/reply/moment_posted
+  final String? postOwnerId;  // UID of post owner (for navigation)
+  final String? commentId;    // for reply notifications
+  final String? imageUrl;     // post thumbnail
   final DateTime createdAt;
   final bool isRead;
 
@@ -20,8 +28,9 @@ class NotificationModel {
     required this.senderAvatar,
     required this.receiverId,
     required this.type,
-    required this.title,
-    required this.body,
+    this.postId,
+    this.postOwnerId,
+    this.commentId,
     this.imageUrl,
     required this.createdAt,
     required this.isRead,
@@ -42,8 +51,9 @@ class NotificationModel {
       senderAvatar: data['senderAvatar'] ?? '',
       receiverId: data['receiverId'] ?? '',
       type: data['type'] ?? '',
-      title: data['title'] ?? '',
-      body: data['body'] ?? '',
+      postId: data['postId'],
+      postOwnerId: data['postOwnerId'],
+      commentId: data['commentId'],
       imageUrl: data['imageUrl'],
       createdAt: created,
       isRead: data['isRead'] ?? false,
@@ -57,9 +67,10 @@ class NotificationModel {
       'senderAvatar': senderAvatar,
       'receiverId': receiverId,
       'type': type,
-      'title': title,
-      'body': body,
-      'imageUrl': imageUrl,
+      if (postId != null) 'postId': postId,
+      if (postOwnerId != null) 'postOwnerId': postOwnerId,
+      if (commentId != null) 'commentId': commentId,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       'createdAt': createdAt,
       'isRead': isRead,
     };

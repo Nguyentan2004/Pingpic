@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'web_safe_image/web_safe_image.dart';
 import '../../core/constants/app_colors.dart';
 import '../providers/friend_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
+import 'package:pingpic/l10n/app_localizations.dart';
 
 /// Left navigation sidebar — Desktop only
 class AppSidebar extends StatelessWidget {
@@ -15,15 +17,18 @@ class AppSidebar extends StatelessWidget {
     required this.currentPath,
   });
 
-  static const _navItems = [
-    _NavItem(icon: Icons.home_rounded, label: 'Home', path: '/home'),
-    _NavItem(icon: Icons.group_rounded, label: 'Friends', path: '/friends'),
-    _NavItem(icon: Icons.notifications_rounded, label: 'Notifications', path: '/notifications'),
-    _NavItem(icon: Icons.settings_rounded, label: 'Settings', path: '/settings'),
-  ];
+
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final navItems = [
+      _NavItem(icon: Icons.home_rounded, label: l10n.navHome, path: '/home'),
+      _NavItem(icon: Icons.group_rounded, label: l10n.navFriends, path: '/friends'),
+      _NavItem(icon: Icons.notifications_rounded, label: l10n.navNotifications, path: '/notifications'),
+      _NavItem(icon: Icons.settings_rounded, label: l10n.navSettings, path: '/settings'),
+    ];
+
     return Container(
       width: 72,
       decoration: BoxDecoration(
@@ -66,11 +71,11 @@ class AppSidebar extends StatelessWidget {
           const SizedBox(height: 32),
 
           // Nav items
-          ...List.generate(_navItems.length, (i) {
-            final item = _navItems[i];
+          ...List.generate(navItems.length, (i) {
+            final item = navItems[i];
             final isSelected = currentPath == item.path;
             
-            if (item.label == 'Notifications') {
+            if (item.path == '/notifications') {
               return Consumer<NotificationProvider>(
                 builder: (context, notifProvider, child) {
                   final unreadCount = notifProvider.unreadCount;
@@ -127,7 +132,7 @@ class AppSidebar extends StatelessWidget {
                         backgroundColor: AppColors.darkCard,
                         child: avatar != null && avatar.isNotEmpty && !avatar.contains('pravatar.cc')
                             ? ClipOval(
-                                child: CachedNetworkImage(
+                                child: WebSafeImage(
                                   imageUrl: avatar,
                                   fit: BoxFit.cover,
                                   memCacheWidth: 80,
@@ -328,7 +333,7 @@ class _AddFriendButtonState extends State<_AddFriendButton> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Add',
+              AppLocalizations.of(context)!.add,
               style: TextStyle(
                 color: _isHovered ? AppColors.primary : AppColors.textMuted,
                 fontSize: 11,
@@ -393,7 +398,7 @@ class _FriendAvatarState extends State<_FriendAvatar> {
                     backgroundColor: AppColors.darkCard,
                     child: widget.avatarUrl.isNotEmpty && !widget.avatarUrl.contains('pravatar.cc')
                         ? ClipOval(
-                            child: CachedNetworkImage(
+                            child: WebSafeImage(
                               imageUrl: widget.avatarUrl,
                               fit: BoxFit.cover,
                               memCacheWidth: 100,

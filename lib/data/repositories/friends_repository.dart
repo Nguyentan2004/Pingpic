@@ -11,10 +11,29 @@ class FriendsRepository {
   Future<List<UserModel>> searchUsers(String query) async {
     try {
       final currentUserId = _auth.currentUser?.uid;
-      final snapshot = await _firestore.collection('users')
-          .where('username', isGreaterThanOrEqualTo: query)
-          .where('username', isLessThanOrEqualTo: '$query\uf8ff')
-          .get();
+      final trimmedQuery = query.trim();
+      if (trimmedQuery.isEmpty) return [];
+
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      final isCode = RegExp(r'^[a-zA-Z0-9]{6}$').hasMatch(trimmedQuery);
+
+      if (isCode) {
+        snapshot = await _firestore.collection('users')
+            .where('shareCode', isEqualTo: trimmedQuery.toUpperCase())
+            .get();
+
+        if (snapshot.docs.isEmpty) {
+          snapshot = await _firestore.collection('users')
+              .where('username', isGreaterThanOrEqualTo: trimmedQuery)
+              .where('username', isLessThanOrEqualTo: '$trimmedQuery\uf8ff')
+              .get();
+        }
+      } else {
+        snapshot = await _firestore.collection('users')
+            .where('username', isGreaterThanOrEqualTo: trimmedQuery)
+            .where('username', isLessThanOrEqualTo: '$trimmedQuery\uf8ff')
+            .get();
+      }
 
       List<UserModel> users = [];
       for (var doc in snapshot.docs) {
@@ -92,7 +111,8 @@ class FriendsRepository {
       try {
         final requesterDoc = await _firestore.collection('users').doc(currentUserId).get();
         final requesterData = requesterDoc.data() ?? {};
-        await _firestore.collection('notifications').add({
+        final notificationId = 'friend_request_${currentUserId}_$receiverId';
+        await _firestore.collection('notifications').doc(notificationId).set({
           'receiverId': receiverId,
           'senderId': currentUserId,
           'senderName': requesterData['fullName'] ?? 'Someone',
@@ -157,8 +177,9 @@ class FriendsRepository {
 
           final accepterDoc = await _firestore.collection('users').doc(currentUserId).get();
           final accepterData = accepterDoc.data() ?? {};
+          final notificationId = 'friend_accepted_${currentUserId}_$otherId';
 
-          await _firestore.collection('notifications').add({
+          await _firestore.collection('notifications').doc(notificationId).set({
             'receiverId': otherId,
             'senderId': currentUserId,
             'senderName': accepterData['fullName'] ?? 'Someone',

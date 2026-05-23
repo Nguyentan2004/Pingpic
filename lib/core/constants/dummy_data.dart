@@ -7,32 +7,41 @@ class DummyPhoto {
   final String id;
   final String imageUrl;
   final Uint8List? imageBytes; // Hỗ trợ hiển thị ảnh vừa upload (chưa có link)
+  final String? userId; // ID của người gửi ảnh từ Firebase Auth/Firestore
   final String senderName;
   final String senderAvatar;
   final String timeAgo;
   final String? caption;
   final int reactionCount;
+  final List<String> likes;
+  final DateTime? createdAt;
 
   const DummyPhoto({
     required this.id,
     required this.imageUrl,
     this.imageBytes,
+    this.userId,
     required this.senderName,
     required this.senderAvatar,
     required this.timeAgo,
     this.caption,
     this.reactionCount = 0,
+    this.likes = const [],
+    this.createdAt,
   });
 
   factory DummyPhoto.fromJson(Map<String, dynamic> json) {
     return DummyPhoto(
       id: json['id']?.toString() ?? 'img_${DateTime.now().millisecondsSinceEpoch}',
       imageUrl: json['imageUrl'] ?? 'https://picsum.photos/seed/${json['id']}/600/800',
+      userId: json['userId']?.toString(),
       senderName: json['senderName'] ?? 'Unknown User',
       senderAvatar: json['senderAvatar'] ?? 'https://i.pravatar.cc/150?u=${json['senderName'] ?? 'unknown'}',
       timeAgo: json['timeAgo'] ?? 'Recently',
       caption: json['caption'],
       reactionCount: json['reactionCount'] ?? 0,
+      likes: List<String>.from(json['likes'] ?? []),
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 }

@@ -50,9 +50,19 @@ class FeedProvider extends ChangeNotifier {
           a[i].caption != b[i].caption ||
           a[i].reactionCount != b[i].reactionCount ||
           a[i].senderName != b[i].senderName ||
-          a[i].senderAvatar != b[i].senderAvatar) {
+          a[i].senderAvatar != b[i].senderAvatar ||
+          !_areLikesEqual(a[i].likes, b[i].likes)) {
         return false;
       }
+    }
+    return true;
+  }
+
+  /// Helper to compare list of likes
+  bool _areLikesEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
     }
     return true;
   }
@@ -85,6 +95,16 @@ class FeedProvider extends ChangeNotifier {
       return await _photoRepo.uploadPhoto(imageBytes, caption);
     } catch (e) {
       debugPrint('Error uploading photo: $e');
+      rethrow;
+    }
+  }
+
+  /// Thích / Bỏ thích ảnh trong feed
+  Future<void> toggleLike(String momentId, bool currentlyLiked) async {
+    try {
+      await _photoRepo.toggleLike(momentId, currentlyLiked);
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
       rethrow;
     }
   }

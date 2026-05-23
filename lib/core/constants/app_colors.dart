@@ -25,4 +25,8 @@ class AppColors {
   static const Color error = Color(0xFFEF4444);
   static const Color warning = Color(0xFFF59E0B);
   static const Color info = Color(0xFF3B82F6);
+
+  // Black opacities (reusable colors to fix invalid Flutter color constants)
+  static const Color black10 = Color(0x1A000000); // Color.fromRGBO(0, 0, 0, 0.1)
+  static const Color black24 = Color(0x3D000000); // Color.fromRGBO(0, 0, 0, 0.24)
 }

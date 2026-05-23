@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
@@ -9,6 +8,10 @@ import '../../core/services/webcam_helper.dart';
 import 'package:provider/provider.dart';
 import '../providers/feed_provider.dart';
 import '../providers/history_provider.dart';
+import '../providers/friend_provider.dart';
+import '../providers/theme_provider.dart';
+import '../../l10n/app_localizations.dart';
+import '../../core/utils/time_formatter.dart';
 
 /// Camera / Upload panel — sử dụng ImageService thật (image_picker).
 /// Hiển thị preview ảnh bằng Image.memory() — web-compatible.
@@ -139,49 +142,84 @@ class _CameraPanelState extends State<CameraPanel>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.darkSurface,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.07),
+          color: isDark ? Colors.white.withOpacity(0.07) : Colors.black.withOpacity(0.07),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: isDark
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildPanelHeader(),
+          _buildPanelHeader(isDark, l10n),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _imageBytes != null
-                        ? _buildPhotoPreview()
-                        : _buildUploadZone(),
-                  ),
-                  // Error banner
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    _buildErrorBanner(),
-                  ],
-                  const SizedBox(height: 16),
-                  if (_imageBytes != null) ...[
-                    _buildCaptionField(),
-                    const SizedBox(height: 12),
-                    _buildRecipientsRow(),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildActionButtons(),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double viewportHeight = constraints.maxHeight;
+                  // Deduct estimated height of action button (56px) + spacing (12px)
+                  final double scrollViewportHeight = (viewportHeight - 68.0).clamp(0.0, double.infinity);
+
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: scrollViewportHeight,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (_imageBytes != null)
+                                  AspectRatio(
+                                    aspectRatio: 1.0,
+                                    child: _buildPhotoPreview(isDark, l10n),
+                                  )
+                                else
+                                  _buildUploadZone(scrollViewportHeight, isDark, l10n),
+                                if (_errorMessage != null) ...[
+                                  const SizedBox(height: 12),
+                                  _buildErrorBanner(isDark),
+                                ],
+                                if (_imageBytes != null) ...[
+                                  const SizedBox(height: 16),
+                                  _buildCaptionField(isDark, l10n),
+                                  const SizedBox(height: 12),
+                                  _buildRecipientsRow(isDark, l10n),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionButtons(l10n),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -190,12 +228,12 @@ class _CameraPanelState extends State<CameraPanel>
     );
   }
 
-  Widget _buildPanelHeader() {
+  Widget _buildPanelHeader(bool isDark, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 16),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          bottom: BorderSide(color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.06)),
         ),
       ),
       child: Row(
@@ -211,7 +249,7 @@ class _CameraPanelState extends State<CameraPanel>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.4),
+                  color: AppColors.primary.withOpacity(0.4),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -224,25 +262,31 @@ class _CameraPanelState extends State<CameraPanel>
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Share a Moment',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.cameraShareMoment,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Text(
-                'Send a photo to all your friends',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
+                Text(
+                  l10n.cameraBroadcastDesc,
+                  style: TextStyle(
+                    color: isDark ? AppColors.textMuted : AppColors.textLight,
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -251,7 +295,12 @@ class _CameraPanelState extends State<CameraPanel>
 
   // ── Upload zone (khi chưa có ảnh) ─────────────────────────────────────────
 
-  Widget _buildUploadZone() {
+  Widget _buildUploadZone(double availableHeight, bool isDark, AppLocalizations l10n) {
+    // Dynamically calculate the target height. Deduct height of error banner if visible.
+    final double targetHeight = _errorMessage != null
+        ? (availableHeight - 90.0).clamp(280.0, double.infinity)
+        : availableHeight.clamp(280.0, double.infinity);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isDragOver = true),
       onExit: (_) => setState(() => _isDragOver = false),
@@ -259,32 +308,33 @@ class _CameraPanelState extends State<CameraPanel>
         onTap: _handlePickFromGallery,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+          height: targetHeight,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _isDragOver
                   ? AppColors.primary
-                  : Colors.white.withValues(alpha: 0.12),
+                  : (isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.12)),
               width: _isDragOver ? 2 : 1.5,
             ),
             color: _isDragOver
-                ? AppColors.primary.withValues(alpha: 0.08)
-                : AppColors.darkCard,
+                ? AppColors.primary.withOpacity(0.08)
+                : (isDark ? AppColors.darkCard : Colors.grey[50]!),
           ),
           child: _isLoading
-              ? _buildLoadingIndicator()
-              : _buildUploadContent(),
+              ? _buildLoadingIndicator(isDark, l10n)
+              : _buildUploadContent(isDark, l10n),
         ),
       ),
     );
   }
 
-  Widget _buildLoadingIndicator() {
+  Widget _buildLoadingIndicator(bool isDark, AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 48,
             height: 48,
             child: CircularProgressIndicator(
@@ -294,9 +344,9 @@ class _CameraPanelState extends State<CameraPanel>
           ),
           const SizedBox(height: 16),
           Text(
-            'Opening camera...',
+            l10n.localeName == 'vi' ? 'Đang mở máy ảnh...' : 'Opening camera...',
             style: TextStyle(
-              color: AppColors.textMuted,
+              color: isDark ? AppColors.textMuted : AppColors.textLight,
               fontSize: 13,
             ),
           ),
@@ -305,7 +355,7 @@ class _CameraPanelState extends State<CameraPanel>
     );
   }
 
-  Widget _buildUploadContent() {
+  Widget _buildUploadContent(bool isDark, AppLocalizations l10n) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -322,15 +372,15 @@ class _CameraPanelState extends State<CameraPanel>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primary.withValues(alpha: 0.2),
-                  AppColors.primaryLight.withValues(alpha: 0.1),
+                  AppColors.primary.withOpacity(0.2),
+                  AppColors.primaryLight.withOpacity(0.1),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.4),
+                color: AppColors.primary.withOpacity(0.4),
                 width: 1.5,
               ),
             ),
@@ -343,9 +393,11 @@ class _CameraPanelState extends State<CameraPanel>
         ),
         const SizedBox(height: 20),
         Text(
-          _isDragOver ? 'Release to upload!' : AppStrings.uploadPhoto,
+          _isDragOver 
+              ? (l10n.localeName == 'vi' ? 'Buông ra để tải lên!' : 'Release to upload!') 
+              : l10n.cameraUploadPhoto,
           style: TextStyle(
-            color: _isDragOver ? AppColors.primary : Colors.white,
+            color: _isDragOver ? AppColors.primary : (isDark ? Colors.white : AppColors.textDark),
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -353,7 +405,7 @@ class _CameraPanelState extends State<CameraPanel>
         const SizedBox(height: 6),
         Text(
           'PNG, JPG, WEBP up to 10MB',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          style: TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 12),
         ),
         const SizedBox(height: 20),
         // Divider
@@ -362,17 +414,17 @@ class _CameraPanelState extends State<CameraPanel>
           children: [
             Container(
                 width: 48, height: 1,
-                color: Colors.white.withValues(alpha: 0.12)),
+                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.12)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
-                'or',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                l10n.localeName == 'vi' ? 'hoặc' : 'or',
+                style: TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 12),
               ),
             ),
             Container(
                 width: 48, height: 1,
-                color: Colors.white.withValues(alpha: 0.12)),
+                color: isDark ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.12)),
           ],
         ),
         const SizedBox(height: 16),
@@ -380,10 +432,10 @@ class _CameraPanelState extends State<CameraPanel>
         OutlinedButton.icon(
           onPressed: _handleTakePhoto,
           icon: const Icon(Icons.camera_alt_rounded, size: 18),
-          label: const Text(AppStrings.takePhoto),
+          label: Text(l10n.cameraTakePhoto),
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
-            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+            side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -396,7 +448,7 @@ class _CameraPanelState extends State<CameraPanel>
 
   // ── Photo preview (khi đã có ảnh) ─────────────────────────────────────────
 
-  Widget _buildPhotoPreview() {
+  Widget _buildPhotoPreview(bool isDark, AppLocalizations l10n) {
     return Stack(
       children: [
         // Ảnh preview thật từ bytes
@@ -405,7 +457,7 @@ class _CameraPanelState extends State<CameraPanel>
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: AppColors.darkCard,
+              color: isDark ? AppColors.darkCard : Colors.grey[100],
               borderRadius: BorderRadius.circular(20),
             ),
             child: Image.memory(
@@ -417,11 +469,11 @@ class _CameraPanelState extends State<CameraPanel>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.broken_image_rounded,
-                        color: AppColors.textMuted, size: 48),
+                        color: isDark ? AppColors.textMuted : AppColors.textLight, size: 48),
                     const SizedBox(height: 8),
-                    Text('Could not display image',
+                    Text(l10n.localeName == 'vi' ? 'Không thể hiển thị ảnh' : 'Could not display image',
                         style: TextStyle(
-                            color: AppColors.textMuted, fontSize: 12)),
+                            color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 12)),
                   ],
                 ),
               ),
@@ -441,7 +493,7 @@ class _CameraPanelState extends State<CameraPanel>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.65),
+                  Colors.black.withOpacity(0.65),
                   Colors.transparent,
                 ],
               ),
@@ -450,7 +502,7 @@ class _CameraPanelState extends State<CameraPanel>
             ),
             child: Row(
               children: [
-                Icon(Icons.check_circle_rounded,
+                const Icon(Icons.check_circle_rounded,
                     color: AppColors.success, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
@@ -469,13 +521,13 @@ class _CameraPanelState extends State<CameraPanel>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Colors.black.withOpacity(0.45),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       _fileSize!,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withOpacity(0.8),
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -495,7 +547,7 @@ class _CameraPanelState extends State<CameraPanel>
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
+                color: Colors.black.withOpacity(0.65),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -517,19 +569,19 @@ class _CameraPanelState extends State<CameraPanel>
               padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: Colors.black.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.swap_horiz_rounded,
-                      color: Colors.white.withValues(alpha: 0.9), size: 14),
+                      color: Colors.white.withOpacity(0.9), size: 14),
                   const SizedBox(width: 5),
                   Text(
-                    'Replace',
+                    l10n.localeName == 'vi' ? 'Thay thế' : 'Replace',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -545,7 +597,7 @@ class _CameraPanelState extends State<CameraPanel>
 
   // ── Error banner ───────────────────────────────────────────────────────────
 
-  Widget _buildErrorBanner() {
+  Widget _buildErrorBanner(bool isDark) {
     final lines = _errorMessage!.split('\n');
     final title = lines.first;
     final detail = lines.length > 1 ? lines.sublist(1).join('\n') : null;
@@ -554,17 +606,17 @@ class _CameraPanelState extends State<CameraPanel>
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.1),
+        color: AppColors.error.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
+          color: AppColors.error.withOpacity(0.3),
           width: 1,
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline_rounded,
+          const Icon(Icons.error_outline_rounded,
               color: AppColors.error, size: 18),
           const SizedBox(width: 10),
           Expanded(
@@ -573,8 +625,8 @@ class _CameraPanelState extends State<CameraPanel>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textDark,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -584,7 +636,7 @@ class _CameraPanelState extends State<CameraPanel>
                   Text(
                     detail,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: isDark ? Colors.white.withOpacity(0.7) : AppColors.textLight,
                       fontSize: 12,
                     ),
                   ),
@@ -595,7 +647,7 @@ class _CameraPanelState extends State<CameraPanel>
           GestureDetector(
             onTap: () => setState(() => _errorMessage = null),
             child: Icon(Icons.close_rounded,
-                color: Colors.white.withValues(alpha: 0.5), size: 16),
+                color: isDark ? Colors.white.withOpacity(0.5) : AppColors.textLight, size: 16),
           ),
         ],
       ),
@@ -604,17 +656,17 @@ class _CameraPanelState extends State<CameraPanel>
 
   // ── Caption field ──────────────────────────────────────────────────────────
 
-  Widget _buildCaptionField() {
+  Widget _buildCaptionField(bool isDark, AppLocalizations l10n) {
     return TextField(
       controller: _captionController,
       maxLines: 2,
       maxLength: 100,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: TextStyle(color: isDark ? Colors.white : AppColors.textDark, fontSize: 14),
       decoration: InputDecoration(
-        hintText: AppStrings.addCaption,
-        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
+        hintText: l10n.cameraAddCaption,
+        hintStyle: TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 14),
         filled: true,
-        fillColor: AppColors.darkCard,
+        fillColor: isDark ? AppColors.darkCard : Colors.grey[100],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -622,33 +674,44 @@ class _CameraPanelState extends State<CameraPanel>
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-              color: AppColors.primary.withValues(alpha: 0.6), width: 1.5),
+              color: AppColors.primary.withOpacity(0.6), width: 1.5),
         ),
         prefixIcon:
-            Icon(Icons.edit_rounded, color: AppColors.textMuted, size: 18),
+            Icon(Icons.edit_rounded, color: isDark ? AppColors.textMuted : AppColors.textLight, size: 18),
         counterStyle:
-            TextStyle(color: AppColors.textMuted, fontSize: 11),
+            TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 11),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
 
-  Widget _buildRecipientsRow() {
+  Widget _buildRecipientsRow(bool isDark, AppLocalizations l10n) {
+    final friendsCount = context.watch<FriendProvider>().friends.length;
     return Row(
       children: [
-        Icon(Icons.group_rounded, color: AppColors.textMuted, size: 16),
+        Icon(Icons.group_rounded, color: isDark ? AppColors.textMuted : AppColors.textLight, size: 16),
         const SizedBox(width: 8),
-        Text(
-          'Sending to ',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-        ),
-        Text(
-          '5 friends',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: l10n.cameraSharingWithCircle,
+                  style: TextStyle(color: isDark ? AppColors.textMuted : AppColors.textLight, fontSize: 13),
+                ),
+                TextSpan(
+                  text: '$friendsCount ${friendsCount == 1 ? l10n.cameraFriend : l10n.cameraFriends}',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -657,7 +720,7 @@ class _CameraPanelState extends State<CameraPanel>
 
   // ── Action buttons ─────────────────────────────────────────────────────────
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(AppLocalizations l10n) {
     return _SendButton(
       enabled: _imageBytes != null && !_isLoading && !_isUploading,
       isUploading: _isUploading,
@@ -676,14 +739,15 @@ class _CameraPanelState extends State<CameraPanel>
           
           if (newPhoto != null) {
             final now = DateTime.now();
+            final friendsCount = context.read<FriendProvider>().friends.length;
             final newHistoryPhoto = DummyHistoryPhoto(
               id: newPhoto.id,
               imageUrl: newPhoto.imageUrl,
               imageBytes: _imageBytes,
-              sentAt: 'Today, ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+              sentAt: formatMomentTime(now, l10n: AppLocalizations.of(context)),
               sentDate: now,
               caption: caption,
-              recipientCount: 5,
+              recipientCount: friendsCount,
               reactionCount: 0,
             );
             context.read<HistoryProvider>().addNewMoment(newHistoryPhoto);
@@ -692,7 +756,7 @@ class _CameraPanelState extends State<CameraPanel>
           // Làm mới dữ liệu feed sau khi upload
           if (mounted) {
             await context.read<FeedProvider>().fetchNewPhotos();
-            _showSentSnackBar();
+            _showSentSnackBar(l10n);
           }
         } catch (e) {
           // Lỗi sẽ được ErrorInterceptor bắt và hiển thị SnackBar
@@ -707,17 +771,17 @@ class _CameraPanelState extends State<CameraPanel>
     );
   }
 
-  void _showSentSnackBar() {
+  void _showSentSnackBar(AppLocalizations l10n) {
     if (!mounted) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Row(
+        content: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 10),
-            Text(AppStrings.photoSent,
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(l10n.cameraPhotoSent,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
           ],
         ),
         backgroundColor: AppColors.success,
@@ -759,6 +823,10 @@ class _SendButtonState extends State<_SendButton> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+    final l10n = AppLocalizations.of(context)!;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -781,11 +849,11 @@ class _SendButtonState extends State<_SendButton> {
               : null,
           color: widget.enabled
               ? null
-              : Colors.white.withValues(alpha: 0.08),
+              : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06)),
           boxShadow: widget.enabled && _isHovered
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.45),
+                    color: AppColors.primary.withOpacity(0.45),
                     blurRadius: 20,
                     offset: const Offset(0, 6),
                     spreadRadius: 2,
@@ -798,7 +866,7 @@ class _SendButtonState extends State<_SendButton> {
           child: InkWell(
             onTap: widget.enabled ? widget.onSend : null,
             borderRadius: BorderRadius.circular(16),
-            splashColor: Colors.white.withValues(alpha: 0.15),
+            splashColor: Colors.white.withOpacity(0.15),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
@@ -816,14 +884,14 @@ class _SendButtonState extends State<_SendButton> {
                   else
                     Icon(
                       Icons.send_rounded,
-                      color: widget.enabled ? Colors.white : AppColors.textMuted,
+                      color: widget.enabled ? Colors.white : (isDark ? AppColors.textMuted : AppColors.textLight),
                       size: 20,
                     ),
                   const SizedBox(width: 10),
                   Text(
-                    widget.isUploading ? 'Sending...' : AppStrings.sendPhoto,
+                    widget.isUploading ? l10n.cameraSending : l10n.cameraSendToFriends,
                     style: TextStyle(
-                      color: widget.enabled ? Colors.white : AppColors.textMuted,
+                      color: widget.enabled ? Colors.white : (isDark ? AppColors.textMuted : AppColors.textLight),
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.3,

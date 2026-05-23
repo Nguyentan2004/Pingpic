@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'web_safe_image/web_safe_image.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/dummy_data.dart';
 import '../../../app.dart';
+import '../../../core/utils/time_formatter.dart';
 import '../providers/history_provider.dart';
+import 'package:pingpic/l10n/app_localizations.dart';
 
 /// Grid tile cho một ảnh lịch sử.
 /// Khi hover: xuất hiện overlay mờ + ngày giờ + caption + stats.
@@ -128,7 +130,7 @@ class _HistoryPhotoTileState extends State<HistoryPhotoTile>
       );
     }
 
-    return CachedNetworkImage(
+    return WebSafeImage(
       imageUrl: widget.photo.imageUrl,
       fit: BoxFit.cover,
       memCacheWidth: 350,
@@ -187,7 +189,7 @@ class _HistoryPhotoTileState extends State<HistoryPhotoTile>
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          widget.photo.sentAt,
+                          formatMomentTime(widget.photo.sentDate, l10n: AppLocalizations.of(context)),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 11,
@@ -337,19 +339,20 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
   bool _isDeleting = false;
 
   void _confirmDelete(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.darkSurface,
-        title: const Text('Xóa ảnh', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Bạn có chắc chắn muốn xóa khoảnh khắc này không?',
-          style: TextStyle(color: AppColors.textMuted),
+        title: Text(l10n.deleteMomentTitle, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          l10n.deleteMomentConfirm,
+          style: const TextStyle(color: AppColors.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy', style: TextStyle(color: Colors.white70)),
+            child: Text(l10n.settingsCancel, style: const TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () async {
@@ -364,8 +367,8 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                 if (mounted) {
                   Navigator.pop(context); // Đóng Detail Dialog
                   scaffoldMessengerKey.currentState?.showSnackBar(
-                    const SnackBar(
-                      content: Text('Đã xóa ảnh'),
+                    SnackBar(
+                      content: Text(l10n.deleteMomentSuccess),
                       backgroundColor: Colors.green,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -376,10 +379,17 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                   setState(() {
                     _isDeleting = false;
                   });
+                  scaffoldMessengerKey.currentState?.showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.deleteMomentFailed(e.toString())),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 }
               }
             },
-            child: const Text('Xóa', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: Text(l10n.delete, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -423,7 +433,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                           photo.imageBytes!,
                           fit: BoxFit.cover,
                         )
-                      : CachedNetworkImage(
+                      : WebSafeImage(
                           imageUrl: photo.imageUrl,
                           fit: BoxFit.cover,
                           memCacheWidth: 800,
@@ -478,15 +488,15 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Sent on',
-                                    style: TextStyle(
+                                  Text(
+                                    AppLocalizations.of(context)!.detailSentOn,
+                                    style: const TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 11,
                                     ),
                                   ),
                                   Text(
-                                    widget.photo.sentAt,
+                                    formatMomentTime(widget.photo.sentDate, l10n: AppLocalizations.of(context)),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -510,7 +520,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                               onPressed: () => _confirmDelete(context),
-                              tooltip: 'Xóa ảnh',
+                              tooltip: AppLocalizations.of(context)!.deleteMomentTooltip,
                             ),
                         ],
                       ),
@@ -534,14 +544,12 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                         children: [
                           _DetailStat(
                             icon: Icons.group_rounded,
-                            value: '${widget.photo.recipientCount}',
-                            label: 'friends',
+                            text: AppLocalizations.of(context)!.detailFriendsCount(widget.photo.recipientCount),
                           ),
                           const SizedBox(width: 16),
                           _DetailStat(
                             icon: Icons.favorite_rounded,
-                            value: '${widget.photo.reactionCount}',
-                            label: 'reactions',
+                            text: AppLocalizations.of(context)!.detailReactionsCount(widget.photo.reactionCount),
                             iconColor: AppColors.primary,
                           ),
                         ],
@@ -564,7 +572,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 13),
                           ),
-                          child: const Text('Close'),
+                          child: Text(AppLocalizations.of(context)!.detailClose),
                         ),
                       ),
                     ],
@@ -581,14 +589,12 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
 
 class _DetailStat extends StatelessWidget {
   final IconData icon;
-  final String value;
-  final String label;
+  final String text;
   final Color iconColor;
 
   const _DetailStat({
     required this.icon,
-    required this.value,
-    required this.label,
+    required this.text,
     this.iconColor = Colors.white,
   });
 
@@ -598,25 +604,12 @@ class _DetailStat extends StatelessWidget {
       children: [
         Icon(icon, color: iconColor, size: 16),
         const SizedBox(width: 6),
-        RichText(
-          text: TextSpan(
-            children: [
-              TextSpan(
-                text: value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-              ),
-              TextSpan(
-                text: ' $label',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+        Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
           ),
         ),
       ],

@@ -38,13 +38,18 @@ class NotificationProvider extends ChangeNotifier {
     _notificationsSubscription = _firestore
         .collection('notifications')
         .where('receiverId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
+        .limit(100)
         .snapshots()
         .listen(
       (snapshot) {
-        _notifications = snapshot.docs
+        final list = snapshot.docs
             .map((doc) => NotificationModel.fromFirestore(doc))
             .toList();
+        
+        // Sort in-memory: newest first (descending order of createdAt)
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        
+        _notifications = list;
         _isLoading = false;
         notifyListeners();
       },

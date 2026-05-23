@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/web_safe_image/web_safe_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/dummy_data.dart';
 import '../../providers/history_provider.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/history_photo_tile.dart';
 import '../../widgets/history_skeleton_tile.dart';
+import 'package:pingpic/l10n/app_localizations.dart';
+import '../../../core/utils/time_formatter.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -408,7 +410,7 @@ class _HistoryListTileState extends State<_HistoryListTile> {
               child: SizedBox(
                 width: 80,
                 height: 80,
-                child: CachedNetworkImage(
+                child: WebSafeImage(
                   imageUrl: widget.photo.imageUrl,
                   fit: BoxFit.cover,
                   memCacheWidth: 160,
@@ -440,7 +442,7 @@ class _HistoryListTileState extends State<_HistoryListTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.photo.sentAt,
+                      formatMomentTime(widget.photo.sentDate, l10n: AppLocalizations.of(context)),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,

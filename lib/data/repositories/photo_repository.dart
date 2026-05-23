@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/dummy_data.dart';
+import '../../core/utils/time_formatter.dart';
+import '../models/comment_model.dart';
 
 class _UserCacheEntry {
   final String fullName;
@@ -36,14 +38,6 @@ class PhotoRepository {
     _userCache.clear();
   }
 
-  /// Phân tách danh sách thành các danh sách con có kích thước size
-  List<List<T>> _partitionList<T>(List<T> list, int size) {
-    List<List<T>> chunks = [];
-    for (var i = 0; i < list.length; i += size) {
-      chunks.add(list.sublist(i, i + size > list.length ? list.length : i + size));
-    }
-    return chunks;
-  }
 
   /// Lấy Stream realtime của Feed ảnh (không giới hạn whereIn, có cache user)
   Stream<List<DummyPhoto>> getFeedPhotosStream() {
@@ -54,7 +48,20 @@ class PhotoRepository {
 
     late StreamController<List<DummyPhoto>> controller;
     StreamSubscription? friendshipsSub;
-    List<StreamSubscription> momentsSubs = [];
+    final Map<String, StreamSubscription> momentsSubs = {};
+    final Map<String, List<_PhotoWithDate>> userPhotos = {};
+
+    void emitMergedPhotos() {
+      if (controller.isClosed) return;
+      List<_PhotoWithDate> merged = [];
+      for (var list in userPhotos.values) {
+        merged.addAll(list);
+      }
+      merged.sort((a, b) => b.date.compareTo(a.date));
+      final result = merged.take(20).map((e) => e.photo).toList();
+      debugPrint('FEED_DEBUG: filtered count = ${result.length}');
+      controller.add(result);
+    }
 
     controller = StreamController<List<DummyPhoto>>(
       onListen: () {
@@ -72,34 +79,40 @@ class PhotoRepository {
                 return data['requesterId'] == currentUserId
                     ? data['receiverId'] as String
                     : data['requesterId'] as String;
-              }).toList();
+              }).toSet();
 
               // Thêm chính mình vào feed
               friendIds.add(currentUserId);
+              debugPrint('FEED_DEBUG: friendIds = $friendIds');
 
-              // 2. Hủy các sub-subscription moments cũ để tránh trùng lặp/leak
-              for (var sub in momentsSubs) {
-                sub.cancel();
+              // 2. Xác định xem ai đã bị xóa khỏi bạn bè
+              final removedUids = momentsSubs.keys.where((uid) => !friendIds.contains(uid)).toList();
+              for (final uid in removedUids) {
+                momentsSubs[uid]?.cancel();
+                momentsSubs.remove(uid);
+                userPhotos.remove(uid);
               }
-              momentsSubs.clear();
 
-              // 3. Phân tách danh sách thành các nhóm nhỏ (tối đa 30 phần tử) để tránh giới hạn whereIn của Firestore
-              final chunks = _partitionList(friendIds, 30);
-              final Map<int, List<_PhotoWithDate>> chunkPhotos = {};
+              // Nếu có bạn bè bị xóa, cập nhật lại feed ngay
+              if (removedUids.isNotEmpty) {
+                emitMergedPhotos();
+              }
 
-              for (int i = 0; i < chunks.length; i++) {
-                final chunk = chunks[i];
+              // 3. Lắng nghe moments của từng user mới chưa có trong momentsSubs
+              for (final uid in friendIds) {
+                if (momentsSubs.containsKey(uid)) {
+                  continue;
+                }
 
                 final sub = _firestore.collection('moments')
-                    .where('userId', whereIn: chunk)
-                    .orderBy('createdAt', descending: true)
-                    .limit(20)
+                    .where('userId', isEqualTo: uid)
                     .snapshots()
                     .listen((momentsSnapshot) async {
                       List<_PhotoWithDate> photosWithDate = [];
                       for (var doc in momentsSnapshot.docs) {
                         final data = doc.data();
-                        final userId = data['userId'] as String;
+                        final String mUserId = data['userId'] ?? '';
+                        debugPrint('FEED_DEBUG: moment.userId = $mUserId, docId = ${doc.id}');
                         final Timestamp? timestamp = data['createdAt'];
                         final DateTime sentDate = timestamp?.toDate() ?? DateTime.now();
 
@@ -108,16 +121,16 @@ class PhotoRepository {
                         final String senderAvatar;
 
                         final now = DateTime.now();
-                        final cached = _userCache[userId];
+                        final cached = _userCache[uid];
                         if (cached != null && now.difference(cached.fetchedAt) < const Duration(minutes: 5)) {
                           senderName = cached.fullName;
                           senderAvatar = cached.avatarUrl;
                         } else {
-                          final userDoc = await _firestore.collection('users').doc(userId).get();
+                          final userDoc = await _firestore.collection('users').doc(uid).get();
                           final userData = userDoc.data() ?? {};
                           senderName = userData['fullName'] ?? 'Unknown User';
                           senderAvatar = userData['avatarUrl'] ?? '';
-                          _userCache[userId] = _UserCacheEntry(
+                          _userCache[uid] = _UserCacheEntry(
                             fullName: senderName,
                             avatarUrl: senderAvatar,
                             fetchedAt: now,
@@ -128,38 +141,26 @@ class PhotoRepository {
                           DummyPhoto(
                             id: doc.id,
                             imageUrl: data['imageUrl'] ?? '',
+                            userId: uid,
                             senderName: senderName,
                             senderAvatar: senderAvatar,
-                            timeAgo: 'Recently',
+                            timeAgo: formatMomentTime(sentDate),
                             caption: data['caption'],
                             reactionCount: data['reactionCount'] ?? 0,
+                            likes: List<String>.from(data['likes'] ?? []),
+                            createdAt: sentDate,
                           ),
                           sentDate,
                         ));
                       }
 
-                      chunkPhotos[i] = photosWithDate;
-
-                      // Gộp tất cả các chunk và sắp xếp theo thời gian mới nhất
-                      List<_PhotoWithDate> merged = [];
-                      for (var list in chunkPhotos.values) {
-                        merged.addAll(list);
-                      }
-                      merged.sort((a, b) => b.date.compareTo(a.date));
-
-                      // Trả về tối đa 20 ảnh mới nhất trên feed
-                      final result = merged.take(20).map((e) => e.photo).toList();
-
-                      if (!controller.isClosed) {
-                        controller.add(result);
-                      }
+                      userPhotos[uid] = photosWithDate;
+                      emitMergedPhotos();
                     }, onError: (err) {
-                      if (!controller.isClosed) {
-                        controller.addError(err);
-                      }
+                      debugPrint('Error loading feed for user $uid: $err');
                     });
 
-                momentsSubs.add(sub);
+                momentsSubs[uid] = sub;
               }
             }, onError: (err) {
               if (!controller.isClosed) {
@@ -169,16 +170,16 @@ class PhotoRepository {
       },
       onCancel: () {
         friendshipsSub?.cancel();
-        for (var sub in momentsSubs) {
+        for (var sub in momentsSubs.values) {
           sub.cancel();
         }
         momentsSubs.clear();
+        userPhotos.clear();
       },
     );
 
     return controller.stream;
   }
-
 
   /// Lấy danh sách ảnh cho Feed
   Future<List<DummyPhoto>> getFeedPhotos() async {
@@ -197,38 +198,49 @@ class PhotoRepository {
 
       final friendIds = friendships.docs.map((doc) {
         final data = doc.data();
-        return data['requesterId'] == currentUserId ? data['receiverId'] : data['requesterId'];
+        return (data['requesterId'] == currentUserId ? data['receiverId'] : data['requesterId']) as String;
       }).toList();
 
       // Thêm chính mình vào feed
       friendIds.add(currentUserId);
 
-      // Lấy ảnh từ Firestore
-      final snapshot = await _firestore.collection('moments')
-          .where('userId', whereIn: friendIds)
-          .orderBy('createdAt', descending: true)
-          .limit(20)
-          .get();
+      // Lấy ảnh từ Firestore cho từng user và gộp lại
+      List<_PhotoWithDate> allPhotos = [];
+      for (final uid in friendIds) {
+        final snapshot = await _firestore.collection('moments')
+            .where('userId', isEqualTo: uid)
+            .get();
 
-      List<DummyPhoto> photos = [];
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        
-        // Lấy info user gửi ảnh
-        final userDoc = await _firestore.collection('users').doc(data['userId']).get();
+        final userDoc = await _firestore.collection('users').doc(uid).get();
         final userData = userDoc.data() ?? {};
+        final senderName = userData['fullName'] ?? 'Unknown User';
+        final senderAvatar = userData['avatarUrl'] ?? '';
 
-        photos.add(DummyPhoto(
-          id: doc.id,
-          imageUrl: data['imageUrl'] ?? '',
-          senderName: userData['fullName'] ?? 'Unknown User',
-          senderAvatar: userData['avatarUrl'] ?? '',
-          timeAgo: 'Recently', // Có thể dùng intl để format timestamp
-          caption: data['caption'],
-          reactionCount: data['reactionCount'] ?? 0,
-        ));
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final Timestamp? timestamp = data['createdAt'];
+          final DateTime sentDate = timestamp?.toDate() ?? DateTime.now();
+
+          allPhotos.add(_PhotoWithDate(
+            DummyPhoto(
+              id: doc.id,
+              imageUrl: data['imageUrl'] ?? '',
+              userId: uid,
+              senderName: senderName,
+              senderAvatar: senderAvatar,
+              timeAgo: formatMomentTime(sentDate),
+              caption: data['caption'],
+              reactionCount: data['reactionCount'] ?? 0,
+              likes: List<String>.from(data['likes'] ?? []),
+              createdAt: sentDate,
+            ),
+            sentDate,
+          ));
+        }
       }
-      return photos;
+
+      allPhotos.sort((a, b) => b.date.compareTo(a.date));
+      return allPhotos.take(20).map((e) => e.photo).toList();
     } catch (e) {
       throw Exception('Failed to fetch feed photos: $e');
     }
@@ -242,10 +254,9 @@ class PhotoRepository {
 
       final snapshot = await _firestore.collection('moments')
           .where('userId', isEqualTo: currentUserId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final list = snapshot.docs.map((doc) {
         final data = doc.data();
         final Timestamp? timestamp = data['createdAt'];
         final DateTime sentDate = timestamp?.toDate() ?? DateTime.now();
@@ -253,16 +264,44 @@ class PhotoRepository {
         return DummyHistoryPhoto(
           id: doc.id,
           imageUrl: data['imageUrl'] ?? '',
-          sentAt: '${sentDate.hour}:${sentDate.minute}',
+          sentAt: formatMomentTime(sentDate),
           sentDate: sentDate,
           caption: data['caption'],
           recipientCount: 0, // Firestore không track cái này mặc định
           reactionCount: data['reactionCount'] ?? 0,
         );
       }).toList();
+      list.sort((a, b) => b.sentDate.compareTo(a.sentDate));
+      return list;
     } catch (e) {
       throw Exception('Failed to fetch history photos: $e');
     }
+  }
+
+  /// Lấy Stream realtime danh sách ảnh lịch sử của người dùng
+  Stream<List<DummyHistoryPhoto>> getHistoryPhotosStream(String userId) {
+    return _firestore.collection('moments')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) {
+            final data = doc.data();
+            final Timestamp? timestamp = data['createdAt'];
+            final DateTime sentDate = timestamp?.toDate() ?? DateTime.now();
+
+            return DummyHistoryPhoto(
+              id: doc.id,
+              imageUrl: data['imageUrl'] ?? '',
+              sentAt: formatMomentTime(sentDate),
+              sentDate: sentDate,
+              caption: data['caption'],
+              recipientCount: 0,
+              reactionCount: data['reactionCount'] ?? 0,
+            );
+          }).toList();
+          list.sort((a, b) => b.sentDate.compareTo(a.sentDate));
+          return list;
+        });
   }
 
   /// Upload photo to Firebase Storage and Save metadata to Firestore
@@ -284,6 +323,7 @@ class PhotoRepository {
       'caption': caption,
       'createdAt': FieldValue.serverTimestamp(),
       'reactionCount': 0,
+      'likes': [],
     });
 
     // Lấy thông tin user hiện tại
@@ -318,8 +358,9 @@ class PhotoRepository {
       for (var doc in friendships.docs) {
         final data = doc.data();
         final friendId = data['requesterId'] == currentUserId ? data['receiverId'] : data['requesterId'];
+        final notificationId = 'moment_${currentUserId}_${docRef.id}_$friendId';
         
-        await _firestore.collection('notifications').add({
+        await _firestore.collection('notifications').doc(notificationId).set({
           'receiverId': friendId,
           'senderId': currentUserId,
           'senderName': userData['fullName'] ?? 'A friend',
@@ -340,11 +381,14 @@ class PhotoRepository {
       id: docRef.id,
       imageUrl: downloadUrl,
       imageBytes: imageBytes,
+      userId: currentUserId,
       senderName: userData['fullName'] ?? 'You',
       senderAvatar: userData['avatarUrl'] ?? '',
       timeAgo: 'Just now',
       caption: caption,
       reactionCount: 0,
+      likes: const [],
+      createdAt: DateTime.now(),
     );
   }
 
@@ -380,4 +424,78 @@ class PhotoRepository {
       throw Exception('Failed to delete photo: $e');
     }
   }
+
+  /// Toggle like/reaction on a moment
+  Future<void> toggleLike(String momentId, bool currentlyLiked) async {
+    try {
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final docRef = _firestore.collection('moments').doc(momentId);
+      if (currentlyLiked) {
+        // If already liked, unlike it: remove uid from likes and decrement reactionCount
+        await docRef.update({
+          'likes': FieldValue.arrayRemove([currentUserId]),
+          'reactionCount': FieldValue.increment(-1),
+        });
+      } else {
+        // If not liked yet, like it: add uid to likes and increment reactionCount
+        await docRef.update({
+          'likes': FieldValue.arrayUnion([currentUserId]),
+          'reactionCount': FieldValue.increment(1),
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to toggle like: $e');
+    }
+  }
+
+  /// Get real-time stream of comments for a moment, filtered for the current user
+  Stream<List<CommentModel>> getCommentsStream(String momentId) {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('moments')
+        .doc(momentId)
+        .collection('comments')
+        .where('participants', arrayContains: currentUserId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => CommentModel.fromFirestore(doc))
+              .toList();
+          // Sort comments in-memory by createdAt ascending (for message thread layout)
+          list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          return list;
+        });
+  }
+
+  /// Add a private comment on a moment
+  Future<void> addComment(String momentId, String receiverId, String text) async {
+    try {
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final userDoc = await _firestore.collection('users').doc(currentUserId).get();
+      final userData = userDoc.data() ?? {};
+
+      await _firestore
+          .collection('moments')
+          .doc(momentId)
+          .collection('comments')
+          .add({
+        'senderId': currentUserId,
+        'receiverId': receiverId,
+        'participants': [currentUserId, receiverId],
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+        'senderName': userData['fullName'] ?? 'Someone',
+        'senderAvatar': userData['avatarUrl'] ?? '',
+      });
+    } catch (e) {
+      throw Exception('Failed to add comment: $e');
+    }
+  }
+
 }

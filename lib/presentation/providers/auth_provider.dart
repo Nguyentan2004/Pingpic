@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math' as math;
 import '../../core/services/presence_service.dart';
 import '../../core/services/notification_service.dart';
 
@@ -11,19 +12,29 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.unknown;
   String? _username;
+  String? _email;
   String? _fullName;
   String? _avatarUrl;
   String? _bio;
+  String? _shareCode;
   String? _userId;
   PresenceService? _presenceService;
 
   AuthStatus get status => _status;
   String? get username => _username;
+  String? get email => _email;
   String? get fullName => _fullName;
   String? get avatarUrl => _avatarUrl;
   String? get bio => _bio;
+  String? get shareCode => _shareCode;
   String? get userId => _userId;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  String _generateShareCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rand = math.Random();
+    return List.generate(6, (index) => chars[rand.nextInt(chars.length)]).join();
+  }
 
   AuthProvider() {
     checkAuthStatus();
@@ -41,6 +52,24 @@ class AuthProvider extends ChangeNotifier {
           _fullName = data['fullName'];
           _avatarUrl = data['avatarUrl'];
           _bio = data['bio'];
+          
+          _email = data['email'] ?? user.email;
+          // Tự động backfill email nếu Firestore document chưa có trường email
+          if (!data.containsKey('email') || data['email'] == null) {
+            FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+              'email': _email,
+            }).catchError((e) => debugPrint('Error backfilling email: $e'));
+          }
+          
+          if (data.containsKey('shareCode') && data['shareCode'] != null && data['shareCode'].toString().isNotEmpty) {
+            _shareCode = data['shareCode'];
+          } else {
+            final generatedCode = _generateShareCode();
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+              'shareCode': generatedCode,
+            });
+            _shareCode = generatedCode;
+          }
         }
         _status = AuthStatus.authenticated;
 
@@ -61,30 +90,73 @@ class AuthProvider extends ChangeNotifier {
 
         _userId = null;
         _username = null;
+        _email = null;
         _fullName = null;
         _avatarUrl = null;
         _bio = null;
+        _shareCode = null;
         _status = AuthStatus.unauthenticated;
       }
       notifyListeners();
     });
   }
 
-  Future<bool> login(String username, String password) async {
+  Future<String?> login(String usernameOrEmail, String password) async {
     try {
-      // Vì Firebase dùng Email, ta giả định email là username@pingpic.com
-      final email = username.contains('@') ? username : '$username@pingpic.com';
-      await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-      return true;
+      String resolvedEmail = usernameOrEmail.trim();
+      if (!resolvedEmail.contains('@')) {
+        // Query Firestore to find the user with this username
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: resolvedEmail)
+            .limit(1)
+            .get();
+            
+        if (query.docs.isEmpty) {
+          return 'auth/username-not-found';
+        } else {
+          final data = query.docs.first.data();
+          final emailVal = data['email'];
+          if (emailVal == null || emailVal.toString().trim().isEmpty) {
+            return 'auth/email-not-linked';
+          }
+          resolvedEmail = emailVal.toString().trim();
+        }
+      }
+      
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: resolvedEmail,
+        password: password,
+      );
+      return null; // Success
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Login Error: ${e.code} - ${e.message}');
+      return e.code;
     } catch (e) {
       debugPrint('Login Error: $e');
-      return false;
+      return 'auth/network-error';
     }
   }
 
-  Future<bool> register(String username, String fullName, String password) async {
+  Future<String?> register({
+    required String username,
+    required String email,
+    required String fullName,
+    required String password,
+  }) async {
     try {
-      final email = '$username@pingpic.com';
+      // 1. Kiểm tra duplicate username trên Firestore
+      final usernameQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
+          
+      if (usernameQuery.docs.isNotEmpty) {
+        return 'auth/username-already-in-use';
+      }
+
+      // 2. Tạo account trên Firebase Auth
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -92,28 +164,50 @@ class AuthProvider extends ChangeNotifier {
 
       final user = credential.user;
       if (user != null) {
-        // Lưu thông tin profile vào Firestore
-        const avatarUrl = ""; // Không dùng pravatar.cc để tránh lỗi CORS
+        final generatedCode = _generateShareCode();
+        // Lưu thông tin profile vào Firestore bao gồm cả email
+        const avatarUrl = "";
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'uid': user.uid,
+          'userId': user.uid,
           'username': username,
+          'email': email,
           'fullName': fullName,
           'avatarUrl': avatarUrl,
           'bio': '',
+          'shareCode': generatedCode,
           'createdAt': FieldValue.serverTimestamp(),
         });
         
         _username = username;
+        _email = email;
         _fullName = fullName;
         _avatarUrl = avatarUrl;
         _bio = '';
+        _shareCode = generatedCode;
         notifyListeners();
-        return true;
+        return null; // Success
       }
+      return 'auth/unknown-error';
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Register Error: ${e.code} - ${e.message}');
+      return e.code;
     } catch (e) {
       debugPrint('Register Error: $e');
+      return 'auth/network-error';
     }
-    return false;
+  }
+
+  Future<String?> sendPasswordReset(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+      return null; // Success
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Reset Password Error: ${e.code} - ${e.message}');
+      return e.code;
+    } catch (e) {
+      debugPrint('Reset Password Error: $e');
+      return 'auth/network-error';
+    }
   }
 
   Future<void> logout() async {

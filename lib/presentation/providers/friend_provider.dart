@@ -8,6 +8,8 @@ import '../../data/repositories/friends_repository.dart';
 class FriendProvider extends ChangeNotifier {
   final FriendsRepository _repository = FriendsRepository();
   final List<StreamSubscription> _friendsStatusSubscriptions = [];
+  StreamSubscription? _friendshipsSubscription;
+  StreamSubscription? _pendingRequestsSubscription;
 
   List<UserModel> _friends = [];
   List<FriendRequestModel> _pendingRequests = [];
@@ -15,6 +17,7 @@ class FriendProvider extends ChangeNotifier {
   
   bool _isLoading = false;
   bool _isSearching = false;
+  bool _isDisposed = false;
 
   List<UserModel> get friends => _friends;
   List<FriendRequestModel> get pendingRequests => _pendingRequests;
@@ -38,41 +41,136 @@ class FriendProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await Future.wait([
-        _repository.getFriendsList(),
-        _repository.getFriendRequests(),
-      ]);
-      _friends = results[0] as List<UserModel>;
-      _pendingRequests = results[1] as List<FriendRequestModel>;
-
-      // Bắt đầu lắng nghe trạng thái online của bạn bè
-      final friendIds = _friends.map((f) => f.id).toList();
-      _listenToFriendsStatus(friendIds);
+      // Bắt đầu lắng nghe danh sách bạn bè realtime
+      startListeningToFriendships();
+      // Bắt đầu lắng nghe danh sách lời mời kết bạn realtime
+      startListeningToPendingRequests();
     } catch (e) {
       debugPrint('Error fetching friends data: $e');
-    } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  void _clearSubscriptions() {
+  /// Lắng nghe danh sách lời mời kết bạn realtime
+  void startListeningToPendingRequests() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    _pendingRequestsSubscription?.cancel();
+    _pendingRequestsSubscription = FirebaseFirestore.instance
+        .collection('friendships')
+        .where('receiverId', isEqualTo: currentUserId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) async {
+      final List<FriendRequestModel> requests = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final requesterId = data['requesterId'] as String;
+
+        try {
+          final requesterDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(requesterId)
+              .get();
+          final requesterData = requesterDoc.data() ?? {};
+
+          requests.add(FriendRequestModel(
+            id: doc.id,
+            requesterName: requesterData['fullName'] ?? 'Unknown',
+            requesterAvatar: requesterData['avatarUrl'] ?? '',
+          ));
+        } catch (e) {
+          debugPrint('Error fetching requester profile: $e');
+        }
+      }
+
+      if (!_isDisposed) {
+        _pendingRequests = requests;
+        _isLoading = false;
+        notifyListeners();
+      }
+    }, onError: (e) {
+      debugPrint('Error listening to pending requests: $e');
+      if (!_isDisposed) {
+        _isLoading = false;
+        notifyListeners();
+      }
+    });
+  }
+
+  void _clearFriendsStatusSubscriptions() {
     for (var sub in _friendsStatusSubscriptions) {
       sub.cancel();
     }
     _friendsStatusSubscriptions.clear();
   }
 
-  void _listenToFriendsStatus(List<String> friendIds) {
-    _clearSubscriptions();
-    if (friendIds.isEmpty) return;
+  void _clearSubscriptions() {
+    _friendshipsSubscription?.cancel();
+    _friendshipsSubscription = null;
+    _pendingRequestsSubscription?.cancel();
+    _pendingRequestsSubscription = null;
+    _clearFriendsStatusSubscriptions();
+  }
 
-    // Chia nhóm IDs theo 30 để tránh Firestore whereIn limitation
+  /// Lắng nghe danh sách bạn bè realtime
+  void startListeningToFriendships() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    _friendshipsSubscription?.cancel();
+    _friendshipsSubscription = FirebaseFirestore.instance
+        .collection('friendships')
+        .where('status', isEqualTo: 'accepted')
+        .where(Filter.or(
+          Filter('requesterId', isEqualTo: currentUserId),
+          Filter('receiverId', isEqualTo: currentUserId),
+        ))
+        .snapshots()
+        .listen((snapshot) {
+      final friendIds = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return data['requesterId'] == currentUserId
+            ? data['receiverId'] as String
+            : data['requesterId'] as String;
+      }).toList();
+
+      if (friendIds.isEmpty) {
+        _friends = [];
+        _clearFriendsStatusSubscriptions();
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      _listenToFriendsProfilesAndStatus(friendIds);
+    }, onError: (e) {
+      debugPrint('Error listening to friendships: $e');
+      _isLoading = false;
+      notifyListeners();
+    });
+  }
+
+  /// Lắng nghe thông tin profile và trạng thái online của bạn bè realtime
+  void _listenToFriendsProfilesAndStatus(List<String> friendIds) {
+    _clearFriendsStatusSubscriptions();
+    if (friendIds.isEmpty) {
+      _friends = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     final List<List<String>> chunks = [];
     for (var i = 0; i < friendIds.length; i += 30) {
       final end = (i + 30 < friendIds.length) ? i + 30 : friendIds.length;
       chunks.add(friendIds.sublist(i, end));
     }
+
+    final Map<String, UserModel> friendsMap = {};
 
     for (final chunk in chunks) {
       final sub = FirebaseFirestore.instance
@@ -80,36 +178,32 @@ class FriendProvider extends ChangeNotifier {
           .where(FieldPath.documentId, whereIn: chunk)
           .snapshots()
           .listen((snapshot) {
-        bool changed = false;
         for (var doc in snapshot.docs) {
           final data = doc.data();
-          final index = _friends.indexWhere((f) => f.id == doc.id);
-          if (index != -1) {
-            final updatedFriend = UserModel(
-              id: _friends[index].id,
-              username: _friends[index].username,
-              fullName: _friends[index].fullName,
-              avatarUrl: _friends[index].avatarUrl,
-              isFriend: _friends[index].isFriend,
-              isRequested: _friends[index].isRequested,
-              isOnline: data['isOnline'] ?? false,
-              lastActive: data['lastActive'] is Timestamp
-                  ? (data['lastActive'] as Timestamp).toDate()
-                  : null,
-            );
+          friendsMap[doc.id] = UserModel(
+            id: doc.id,
+            username: data['username'] ?? '',
+            fullName: data['fullName'] ?? '',
+            avatarUrl: data['avatarUrl'] ?? '',
+            isFriend: true,
+            isRequested: false,
+            isOnline: data['isOnline'] ?? false,
+            lastActive: data['lastActive'] is Timestamp
+                ? (data['lastActive'] as Timestamp).toDate()
+                : null,
+          );
+        }
 
-            if (_friends[index].isOnline != updatedFriend.isOnline ||
-                _friends[index].lastActive != updatedFriend.lastActive) {
-              _friends[index] = updatedFriend;
-              changed = true;
-            }
-          }
-        }
-        if (changed) {
-          notifyListeners();
-        }
+        // Cập nhật danh sách bạn bè theo thứ tự IDs ban đầu
+        _friends = friendIds
+            .map((id) => friendsMap[id])
+            .whereType<UserModel>()
+            .toList();
+
+        _isLoading = false;
+        notifyListeners();
       }, onError: (e) {
-        debugPrint('Error listening to friends status: $e');
+        debugPrint('Error listening to friends profiles/status: $e');
       });
       _friendsStatusSubscriptions.add(sub);
     }
@@ -203,6 +297,7 @@ class FriendProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _clearSubscriptions();
     super.dispose();
   }
